@@ -1,161 +1,401 @@
 <?php
-// index.php - FIXED VERSION
+// index.php - Complete Multi-Tenant Landing Page
 require_once 'config/database.php';
 include 'includes/header.php';
 
-// Get settings
-$settings_query = "SELECT setting_key, setting_value FROM salon_settings";
-$settings_result = mysqli_query($conn, $settings_query);
-$settings = [];
-if ($settings_result) {
-    while ($row = mysqli_fetch_assoc($settings_result)) {
-        $settings[$row['setting_key']] = $row['setting_value'];
-    }
-}
+// Get platform statistics
+$stats = [];
 
-// Get featured services
-$services_query = "SELECT * FROM services WHERE is_active = 1 LIMIT 6";
-$services = mysqli_query($conn, $services_query);
+// Total active salons
+$salons_query = "SELECT COUNT(*) as count FROM salons WHERE subscription_status = 'active'";
+$salons_result = mysqli_query($conn, $salons_query);
+$stats['total_salons'] = mysqli_fetch_assoc($salons_result)['count'] ?? 0;
 
-// Get staff
-$staff_query = "SELECT u.*, sd.* FROM users u JOIN staff_details sd ON u.id = sd.user_id WHERE u.role = 'staff'";
-$staff = mysqli_query($conn, $staff_query);
+// Total staff (stylists)
+$staff_query = "SELECT COUNT(*) as count FROM users WHERE role = 'staff'";
+$staff_result = mysqli_query($conn, $staff_query);
+$stats['total_staff'] = mysqli_fetch_assoc($staff_result)['count'] ?? 0;
+
+// Total services across all salons
+$services_query = "SELECT COUNT(*) as count FROM services WHERE is_active = 1";
+$services_result = mysqli_query($conn, $services_query);
+$stats['total_services'] = mysqli_fetch_assoc($services_result)['count'] ?? 0;
+
+// Average rating (placeholder - if no ratings table, show default)
+$stats['avg_rating'] = '4.8'; // Can be dynamic from reviews table later
+
+// Get featured salons (top 6 by ID or most booked)
+$featured_query = "SELECT * FROM salons WHERE subscription_status = 'active' ORDER BY id DESC LIMIT 6";
+$featured_salons = mysqli_query($conn, $featured_query);
 ?>
 
 <style>
+    /* Landing Page Specific Styles */
     .hero {
-        background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.7) 100%), url('https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=1600') center/cover;
-    }
-    .testimonial {
-        background: var(--gray);
-        border-radius: 15px;
-        padding: 2rem;
+        background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%), url('https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1600') center/cover;
+        padding: 5rem 5%;
         text-align: center;
-        margin: 1rem;
     }
-    .contact-info {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 2rem;
-        margin-top: 2rem;
+    .hero h1 {
+        font-size: 3rem;
+        font-family: 'Playfair Display', serif;
+        margin-bottom: 1rem;
     }
-    .price-list {
+    .hero h1 span {
+        color: #d4af37;
+    }
+    .hero p {
+        font-size: 1.2rem;
+        color: #ccc;
         max-width: 600px;
+        margin: 0 auto 2rem auto;
+    }
+    .cta-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .cta-btn {
+        display: inline-block;
+        padding: 14px 35px;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+    .cta-btn-primary {
+        background: #d4af37;
+        color: #050505;
+    }
+    .cta-btn-primary:hover {
+        background: #f9e547;
+        transform: translateY(-3px);
+    }
+    .cta-btn-secondary {
+        border: 2px solid #d4af37;
+        color: #d4af37;
+        background: transparent;
+    }
+    .cta-btn-secondary:hover {
+        background: #d4af37;
+        color: #050505;
+        transform: translateY(-3px);
+    }
+    
+    .stats-section {
+        padding: 3rem 5%;
+        background: #1a1a1a;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        max-width: 1000px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .stat-box {
+        background: #0a0a0a;
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 3px solid #d4af37;
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #d4af37;
+    }
+    .stat-label {
+        color: #aaa;
+        margin-top: 0.5rem;
+    }
+    
+    .featured-section {
+        padding: 4rem 5%;
+    }
+    .section-title {
+        text-align: center;
+        font-size: 2rem;
+        font-family: 'Playfair Display', serif;
+        margin-bottom: 2rem;
+    }
+    .section-title span {
+        color: #d4af37;
+    }
+    .salons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        max-width: 1200px;
         margin: 0 auto;
     }
-    .price-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.8rem;
-        border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
+    .salon-card {
+        background: #1a1a1a;
+        border-radius: 15px;
+        padding: 1.5rem;
+        transition: all 0.3s;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+    .salon-card:hover {
+        transform: translateY(-5px);
+        border-color: #d4af37;
+    }
+    .salon-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .salon-rating {
+        color: #d4af37;
+        margin-bottom: 0.5rem;
+    }
+    .salon-location {
+        color: #aaa;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+    .salon-contact {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 1rem;
+    }
+    .btn-view {
+        display: inline-block;
+        padding: 8px 20px;
+        border: 1px solid #d4af37;
+        color: #d4af37;
+        text-decoration: none;
+        border-radius: 25px;
+        transition: all 0.3s;
+    }
+    .btn-view:hover {
+        background: #d4af37;
+        color: #050505;
+    }
+    .browse-link {
+        text-align: center;
+        margin-top: 2rem;
+    }
+    .browse-link a {
+        color: #d4af37;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .browse-link a:hover {
+        text-decoration: underline;
+    }
+    
+    .how-it-works {
+        background: #1a1a1a;
+        padding: 4rem 5%;
+    }
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        max-width: 900px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .step {
+        background: #0a0a0a;
+        padding: 1.5rem;
+        border-radius: 15px;
+    }
+    .step-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #d4af37;
+        margin-bottom: 0.5rem;
+    }
+    
+    .features-section {
+        padding: 4rem 5%;
+    }
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .feature {
+        text-align: center;
+        padding: 1rem;
+    }
+    .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .testimonials-section {
+        background: #1a1a1a;
+        padding: 4rem 5%;
+    }
+    .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .testimonial {
+        background: #0a0a0a;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        border-left: 3px solid #d4af37;
+    }
+    .testimonial-text {
+        font-style: italic;
+        margin-bottom: 1rem;
+        color: #ccc;
+    }
+    .testimonial-author {
+        color: #d4af37;
+        font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+        .hero h1 { font-size: 2rem; }
+        .cta-buttons { flex-direction: column; align-items: center; }
+        .salons-grid { grid-template-columns: 1fr; }
     }
 </style>
 
+<!-- HERO SECTION -->
 <section class="hero">
-    <div class="hero-content">
-        <h1>Welcome to <span>SALON PRO</span></h1>
-        <p><?php echo htmlspecialchars($settings['salon_slogan'] ?? 'Where Beauty Meets Excellence'); ?></p>
-        <a href="customer/book.php" class="btn btn-primary">✨ Book Appointment ✨</a>
+    <h1>Welcome to <span>SALON PRO</span></h1>
+    <p>Enterprise Salon Management System. Manage multiple salons, staff, and bookings from one powerful platform.</p>
+    <div class="cta-buttons">
+        <a href="auth/login.php" class="cta-btn cta-btn-primary">👑 For Salon Owners</a>
+        <a href="find_salons.php" class="cta-btn cta-btn-secondary">👤 Find a Salon</a>
     </div>
 </section>
 
-<section class="section">
-    <h2 class="section-title">Our <span>Services</span></h2>
-    <div class="services-grid">
-        <?php if($services && mysqli_num_rows($services) > 0): ?>
-            <?php while($service = mysqli_fetch_assoc($services)): ?>
-            <div class="service-card">
-                <h3><?php echo htmlspecialchars($service['service_name']); ?></h3>
-                <p><?php echo htmlspecialchars($service['description']); ?></p>
-                <p class="price">KSh <?php echo number_format($service['price'], 2); ?></p>
-                <small>⏱️ <?php echo $service['duration_minutes']; ?> mins</small><br><br>
-                <a href="customer/book.php?service=<?php echo $service['id']; ?>" class="btn btn-outline">Book Now</a>
+<!-- PLATFORM STATISTICS -->
+<section class="stats-section">
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-number"><?php echo $stats['total_salons']; ?>+</div>
+            <div class="stat-label">🏢 Salons</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number"><?php echo $stats['total_staff']; ?>+</div>
+            <div class="stat-label">👥 Stylists</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number"><?php echo $stats['total_services']; ?>+</div>
+            <div class="stat-label">💇 Services</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">⭐ <?php echo $stats['avg_rating']; ?></div>
+            <div class="stat-label">Customer Rating</div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURED SALONS -->
+<section class="featured-section">
+    <h2 class="section-title">Featured <span>Salons</span></h2>
+    <div class="salons-grid">
+        <?php if(mysqli_num_rows($featured_salons) > 0): ?>
+            <?php while($salon = mysqli_fetch_assoc($featured_salons)): ?>
+            <div class="salon-card">
+                <div class="salon-name">🏢 <?php echo htmlspecialchars($salon['salon_name']); ?></div>
+                <div class="salon-rating">⭐⭐⭐⭐⭐</div>
+                <div class="salon-location">📍 <?php echo htmlspecialchars($salon['salon_address'] ?? 'Nairobi'); ?></div>
+                <div class="salon-contact">📞 <?php echo htmlspecialchars($salon['salon_phone']); ?></div>
+                <a href="salon.php?id=<?php echo $salon['id']; ?>" class="btn-view">View Salon →</a>
             </div>
             <?php endwhile; ?>
         <?php else: ?>
-            <p>No services available yet. Please check back later.</p>
-        <?php endif; ?>
-    </div>
-</section>
-
-<section class="section" style="background: var(--gray);">
-    <h2 class="section-title">Our <span>Stylists</span></h2>
-    <div class="staff-grid">
-        <?php if($staff && mysqli_num_rows($staff) > 0): ?>
-            <?php while($staff_member = mysqli_fetch_assoc($staff)): ?>
-            <div class="staff-card">
-                <h3><?php echo htmlspecialchars($staff_member['full_name']); ?></h3>
-                <p>✨ <?php echo htmlspecialchars($staff_member['specialty']); ?></p>
-                <p><?php echo $staff_member['experience_years']; ?>+ years experience</p>
-                <p><small><?php echo htmlspecialchars($staff_member['bio']); ?></small></p>
+            <div class="salon-card">
+                <div class="salon-name">No salons available yet</div>
+                <div class="salon-location">Check back soon for salons near you</div>
             </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p>No staff members listed yet.</p>
         <?php endif; ?>
     </div>
-</section>
-
-<section class="section">
-    <h2 class="section-title">Price <span>List</span></h2>
-    <div class="price-list">
-        <?php 
-        $all_services = mysqli_query($conn, "SELECT * FROM services WHERE is_active = 1");
-        if($all_services && mysqli_num_rows($all_services) > 0):
-            while($s = mysqli_fetch_assoc($all_services)): 
-        ?>
-        <div class="price-item">
-            <span><?php echo htmlspecialchars($s['service_name']); ?></span>
-            <span class="price">KSh <?php echo number_format($s['price'], 2); ?></span>
-        </div>
-        <?php 
-            endwhile;
-        else:
-        ?>
-        <p class="price-item">No services available</p>
-        <?php endif; ?>
+    <div class="browse-link">
+        <a href="find_salons.php">Browse All Salons →</a>
     </div>
 </section>
 
-<section class="section" style="background: var(--gray);">
-    <h2 class="section-title">Client <span>Testimonials</span></h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-        <div class="testimonial">
-            <div>⭐⭐⭐⭐⭐</div>
-            <p>"Best salon in town! The team is professional and the service is top-notch."</p>
-            <h4>- Sarah M.</h4>
+<!-- HOW IT WORKS -->
+<section class="how-it-works">
+    <h2 class="section-title">How It <span>Works</span></h2>
+    <div class="steps-grid">
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-title">Choose a Salon</div>
+            <div class="step-desc">Browse our directory and pick your preferred salon</div>
         </div>
-        <div class="testimonial">
-            <div>⭐⭐⭐⭐⭐</div>
-            <p>"Luxury experience at affordable prices. I love my new hairstyle!"</p>
-            <h4>- James K.</h4>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-title">Select a Service</div>
+            <div class="step-desc">Choose from haircuts, makeup, nails, and more</div>
         </div>
-        <div class="testimonial">
-            <div>⭐⭐⭐⭐⭐</div>
-            <p>"The booking system is so easy to use. Highly recommend!"</p>
-            <h4>- Mary W.</h4>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-title">Confirm Booking</div>
+            <div class="step-desc">Pick date, time, and payment method</div>
         </div>
     </div>
 </section>
 
-<section class="section">
-    <h2 class="section-title">Contact & <span>Location</span></h2>
-    <div class="contact-info">
-        <div>
-            <h3>📍 Address</h3>
-            <p><?php echo htmlspecialchars($settings['salon_address'] ?? '123 Luxury Mall, Nairobi'); ?></p>
+<!-- WHY CHOOSE SALON PRO -->
+<section class="features-section">
+    <h2 class="section-title">Why Choose <span>Salon Pro</span></h2>
+    <div class="features-grid">
+        <div class="feature">
+            <div class="feature-icon">🏢</div>
+            <div class="feature-title">Multi-tenant Support</div>
+            <div class="feature-desc">Manage multiple salons from one platform</div>
         </div>
-        <div>
-            <h3>📞 Phone</h3>
-            <p><?php echo htmlspecialchars($settings['salon_phone'] ?? '+254 712 345 678'); ?></p>
+        <div class="feature">
+            <div class="feature-icon">📅</div>
+            <div class="feature-title">24/7 Online Booking</div>
+            <div class="feature-desc">Customers can book anytime, anywhere</div>
         </div>
-        <div>
-            <h3>✉️ Email</h3>
-            <p><?php echo htmlspecialchars($settings['salon_email'] ?? 'info@salonpro.com'); ?></p>
+        <div class="feature">
+            <div class="feature-icon">👥</div>
+            <div class="feature-title">Staff Management</div>
+            <div class="feature-desc">Assign and track staff performance</div>
         </div>
-        <div>
-            <h3>⏰ Hours</h3>
-            <p>Mon-Sat: 9AM - 8PM<br>Sun: 10AM - 5PM</p>
+        <div class="feature">
+            <div class="feature-icon">💰</div>
+            <div class="feature-title">Payment Processing</div>
+            <div class="feature-desc">Cash and M-PESA support</div>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Real-time Reports</div>
+            <div class="feature-desc">Track revenue and popular services</div>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">🔔</div>
+            <div class="feature-title">SMS/Email Alerts</div>
+            <div class="feature-desc">Automatic appointment reminders</div>
+        </div>
+    </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials-section">
+    <h2 class="section-title">What Our <span>Clients Say</span></h2>
+    <div class="testimonials-grid">
+        <div class="testimonial">
+            <div class="testimonial-text">"Salon Pro transformed my business! I can now manage all my branches from one dashboard. The booking system is seamless."</div>
+            <div class="testimonial-author">- Sarah M., Salon Owner</div>
+        </div>
+        <div class="testimonial">
+            <div class="testimonial-text">"Finding and booking appointments has never been easier. I love the M-PESA payment option!"</div>
+            <div class="testimonial-author">- James K., Regular Customer</div>
+        </div>
+        <div class="testimonial">
+            <div class="testimonial-text">"The staff management and reporting features have helped me grow my salon business significantly."</div>
+            <div class="testimonial-author">- Mary W., Salon Owner</div>
         </div>
     </div>
 </section>

@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - COMPLETE WITH SUPER ADMIN NAVIGATION
+// includes/header.php - UPDATED with new navigation links
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -74,32 +74,26 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
             <?php elseif ($logged_in && $user_role == 'admin'): ?>
                 <!-- REGULAR ADMIN (SALON OWNER) NAVIGATION -->
                 <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
                 <li><a href="<?php echo $base_path; ?>admin/dashboard.php">👨‍💼 Admin Panel</a></li>
                 <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
                 
             <?php elseif ($logged_in && $user_role == 'staff'): ?>
                 <!-- STAFF NAVIGATION -->
                 <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
                 <li><a href="<?php echo $base_path; ?>staff/dashboard.php">👩‍💼 Staff Panel</a></li>
                 <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
                 
             <?php elseif ($logged_in && $user_role == 'customer'): ?>
                 <!-- CUSTOMER NAVIGATION -->
                 <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
                 <li><a href="<?php echo $base_path; ?>customer/dashboard.php">📊 My Dashboard</a></li>
                 <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
                 
             <?php else: ?>
                 <!-- PUBLIC NAVIGATION (NOT LOGGED IN) -->
                 <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
                 <li><a href="<?php echo $base_path; ?>auth/login.php">🔐 Login</a></li>
                 <li><a href="<?php echo $base_path; ?>auth/register.php">📝 Register</a></li>
             <?php endif; ?>
