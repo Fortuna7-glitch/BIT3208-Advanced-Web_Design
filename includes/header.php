@@ -1,31 +1,32 @@
 <?php
-// includes/header.php - COMPLETE FIXED FILE
+// includes/header.php - COMPLETE WITH SUPER ADMIN NAVIGATION
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Set base path for all links
+$base_path = '';
+$current_file = $_SERVER['SCRIPT_NAME'];
+
+if (strpos($current_file, '/admin/') !== false || 
+    strpos($current_file, '/auth/') !== false || 
+    strpos($current_file, '/customer/') !== false || 
+    strpos($current_file, '/staff/') !== false ||
+    strpos($current_file, '/super_admin/') !== false) {
+    $base_path = '../';
+}
+
+// Get user info if logged in
 $logged_in = false;
 $user_role = '';
 $user_name = '';
+$is_super_admin = false;
 
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $logged_in = true;
     $user_role = $_SESSION['user_role'];
-    $user_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : '';
-}
-
-// Detect current location
-$current_script = $_SERVER['SCRIPT_NAME'];
-$is_in_admin = strpos($current_script, '/admin/') !== false;
-$is_in_auth = strpos($current_script, '/auth/') !== false;
-$is_in_customer = strpos($current_script, '/customer/') !== false;
-$is_in_staff = strpos($current_script, '/staff/') !== false;
-
-// Set correct base path
-if ($is_in_admin || $is_in_auth || $is_in_customer || $is_in_staff) {
-    $base_path = '../';
-} else {
-    $base_path = '';
+    $user_name = $_SESSION['user_name'];
+    $is_super_admin = ($user_role == 'super_admin');
 }
 ?>
 <!DOCTYPE html>
@@ -40,41 +41,69 @@ if ($is_in_admin || $is_in_auth || $is_in_customer || $is_in_staff) {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Poppins', sans-serif; background: #0a0a0a; color: #ffffff; line-height: 1.6; }
-        .navbar { background: #050505; padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #d4af37; position: sticky; top: 0; z-index: 1000; }
+        .navbar { background: #050505; padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #d4af37; position: sticky; top: 0; z-index: 1000; flex-wrap: wrap; }
         .logo { font-size: 1.8rem; font-weight: bold; color: white; }
         .logo span { color: #d4af37; font-family: 'Playfair Display', serif; }
-        .nav-links { display: flex; list-style: none; gap: 2rem; }
+        .logo small { color: #d4af37; font-size: 0.8rem; }
+        .nav-links { display: flex; list-style: none; gap: 2rem; flex-wrap: wrap; }
+        .nav-links li { display: inline-block; }
         .nav-links a { color: white; text-decoration: none; font-weight: 500; transition: color 0.3s; }
         .nav-links a:hover { color: #d4af37; }
-        @media (max-width: 768px) { .navbar { flex-direction: column; gap: 1rem; } .nav-links { flex-wrap: wrap; justify-content: center; gap: 1rem; } }
+        @media (max-width: 768px) { 
+            .navbar { flex-direction: column; text-align: center; gap: 1rem; } 
+            .nav-links { justify-content: center; gap: 1rem; }
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo"><span>SALON</span> PRO <small>✨</small></div>
+        <div class="logo">
+            <span>SALON</span> PRO <small><?php echo $is_super_admin ? '👑' : '✨'; ?></small>
+        </div>
         <ul class="nav-links">
-            <?php if ($logged_in && ($user_role == 'staff' || $user_role == 'admin' || $user_role == 'customer')): ?>
-                <li><a href="<?php echo $base_path; ?>index.php">Home</a></li>
+            
+            <?php if ($logged_in && $is_super_admin): ?>
+                <!-- SUPER ADMIN NAVIGATION -->
+                <li><a href="<?php echo $base_path; ?>super_admin/dashboard.php">🏠 Home</a></li>
+                <li><a href="<?php echo $base_path; ?>super_admin/salons.php">🏢 Salons</a></li>
+                <li><a href="<?php echo $base_path; ?>super_admin/admins.php">👨‍💼 Owners</a></li>
+                <li><a href="<?php echo $base_path; ?>super_admin/subscriptions.php">💰 Subscriptions</a></li>
+                <li><a href="<?php echo $base_path; ?>super_admin/settings.php">⚙️ Settings</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
+                
+            <?php elseif ($logged_in && $user_role == 'admin'): ?>
+                <!-- REGULAR ADMIN (SALON OWNER) NAVIGATION -->
+                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
+                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
+                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>admin/dashboard.php">👨‍💼 Admin Panel</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
+                
+            <?php elseif ($logged_in && $user_role == 'staff'): ?>
+                <!-- STAFF NAVIGATION -->
+                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
+                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
+                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>staff/dashboard.php">👩‍💼 Staff Panel</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
+                
+            <?php elseif ($logged_in && $user_role == 'customer'): ?>
+                <!-- CUSTOMER NAVIGATION -->
+                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
+                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
+                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>customer/dashboard.php">📊 My Dashboard</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
+                
             <?php else: ?>
-                <li><a href="<?php echo $base_path; ?>index.php">Home</a></li>
+                <!-- PUBLIC NAVIGATION (NOT LOGGED IN) -->
+                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
+                <li><a href="<?php echo $base_path; ?>services.php">💇 Services</a></li>
+                <li><a href="<?php echo $base_path; ?>customer/book.php">📅 Book Now</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/login.php">🔐 Login</a></li>
+                <li><a href="<?php echo $base_path; ?>auth/register.php">📝 Register</a></li>
             <?php endif; ?>
             
-            <?php if ($logged_in && $user_role == 'customer'): ?>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">Book Now</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/dashboard.php">My Dashboard</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-            <?php elseif ($logged_in && $user_role == 'staff'): ?>
-                <li><a href="<?php echo $base_path; ?>staff/dashboard.php">Staff Panel</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-            <?php elseif ($logged_in && $user_role == 'admin'): ?>
-                <li><a href="<?php echo $base_path; ?>admin/dashboard.php">Admin Panel</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-            <?php else: ?>
-                <li><a href="<?php echo $base_path; ?>services.php">Services</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/book.php">Book Now</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/login.php">Login</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/register.php">Register</a></li>
-            <?php endif; ?>
         </ul>
     </nav>
     <main>

@@ -1,10 +1,29 @@
 <?php
-// admin/dashboard.php - COMPLETE FIXED FILE (Staff cannot access)
+// admin/dashboard.php - Add this near the top
 require_once '../config/database.php';
 
-// ONLY ADMIN can access - redirect staff and customers
-if (!isLoggedIn() || !isAdmin()) {
-    redirect('../auth/login.php');
+// Check if this is a demo view from super admin
+$is_demo = isset($_SESSION['demo_mode']) && $_SESSION['demo_mode'] === true;
+
+// If it's a demo, allow access but show read-only banner
+if (!$is_demo) {
+    // Regular access control for normal admins
+    if (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'super_admin') {
+        header("Location: ../super_admin/dashboard.php");
+        exit();
+    }
+    
+    if (!isLoggedIn() || !isAdmin()) {
+        redirect('../auth/login.php');
+    }
+}
+
+// Add a demo banner if in demo mode
+if ($is_demo) {
+    echo '<div style="background: #d4af37; color: #050505; text-align: center; padding: 10px; font-weight: bold;">
+            🔍 DEMO MODE: You are viewing this as a Salon Owner would see it. 
+            <a href="../super_admin/dashboard.php" style="color: #050505; text-decoration: underline;">Exit Demo</a>
+        </div>';
 }
 
 // Get statistics
@@ -37,11 +56,11 @@ if ($pending_query) {
 // Get today's appointments
 $today = date('Y-m-d');
 $today_appointments = mysqli_query($conn, "SELECT a.*, c.full_name as customer_name, s.service_name 
-                                          FROM appointments a 
-                                          JOIN users c ON a.customer_id = c.id 
-                                          JOIN services s ON a.service_id = s.id 
-                                          WHERE a.appointment_date = '$today' 
-                                          ORDER BY a.appointment_time ASC");
+                                        FROM appointments a 
+                                        JOIN users c ON a.customer_id = c.id 
+                                        JOIN services s ON a.service_id = s.id 
+                                        WHERE a.appointment_date = '$today' 
+                                        ORDER BY a.appointment_time ASC");
 
 // Get queue
 $queue_query = mysqli_query($conn, "SELECT a.*, u.full_name as customer_name, s.service_name, st.full_name as staff_name 

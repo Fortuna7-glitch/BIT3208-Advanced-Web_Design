@@ -6,6 +6,7 @@ if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'super_admin') 
     redirect('../auth/login.php');
 }
 
+
 // Get all salon owners (admins) with their salon info
 $admins = mysqli_query($conn, "SELECT u.*, s.salon_name, s.subscription_plan, s.subscription_status
                                 FROM users u 
