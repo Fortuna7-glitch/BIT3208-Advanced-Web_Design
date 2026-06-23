@@ -1,10 +1,13 @@
 <?php
-// super_admin/salons.php - Create and manage all salons
+// super_admin/salons.php - UPDATED with plan selection
 require_once '../config/database.php';
 
 if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'super_admin') {
     redirect('../auth/login.php');
 }
+
+// Get plan pricing
+$plan_pricing = getPlanPricing();
 
 // Handle Add Salon with Owner
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_salon'])) {
@@ -22,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_salon'])) {
     mysqli_begin_transaction($conn);
     
     try {
-        // Insert salon
-        $salon_query = "INSERT INTO salons (salon_name, salon_email, salon_phone, salon_address, subscription_plan) 
-                        VALUES ('$salon_name', '$salon_email', '$salon_phone', '$salon_address', '$subscription_plan')";
+        // Insert salon with plan
+        $salon_query = "INSERT INTO salons (salon_name, salon_email, salon_phone, salon_address, subscription_plan, subscription_status) 
+                        VALUES ('$salon_name', '$salon_email', '$salon_phone', '$salon_address', '$subscription_plan', 'active')";
         mysqli_query($conn, $salon_query);
         $salon_id = mysqli_insert_id($conn);
         
@@ -34,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_salon'])) {
         mysqli_query($conn, $owner_query);
         
         mysqli_commit($conn);
-        $success = "Salon and Owner created successfully! Owner password: owner123";
+        $success = "Salon and Owner created successfully! Owner password: owner123 | Plan: " . ucfirst($subscription_plan);
         
     } catch (Exception $e) {
         mysqli_rollback($conn);
@@ -50,18 +53,23 @@ if (isset($_GET['update_status']) && isset($_GET['id']) && isset($_GET['status']
     redirect('salons.php');
 }
 
+// Handle Update Plan
+if (isset($_GET['update_plan']) && isset($_GET['id']) && isset($_GET['plan'])) {
+    $id = mysqli_real_escape_string($conn, $_GET['id']);
+    $plan = mysqli_real_escape_string($conn, $_GET['plan']);
+    mysqli_query($conn, "UPDATE salons SET subscription_plan = '$plan' WHERE id = $id");
+    redirect('salons.php');
+}
+
 // Handle Delete Salon
 if (isset($_GET['delete'])) {
     $id = mysqli_real_escape_string($conn, $_GET['delete']);
-    
-    // Delete all related data
     mysqli_query($conn, "DELETE FROM appointments WHERE salon_id = $id");
     mysqli_query($conn, "DELETE FROM products WHERE salon_id = $id");
     mysqli_query($conn, "DELETE FROM services WHERE salon_id = $id");
     mysqli_query($conn, "DELETE FROM users WHERE salon_id = $id");
     mysqli_query($conn, "DELETE FROM subscription_history WHERE salon_id = $id");
     mysqli_query($conn, "DELETE FROM salons WHERE id = $id");
-    
     redirect('salons.php');
 }
 
@@ -86,6 +94,8 @@ include '../includes/header.php';
     .form-control, select { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
     .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; }
     .btn-danger { background: #dc3545; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-warning { background: #d4af37; color: #050505; }
     
     .table-wrapper { overflow-x: auto; background: #1a1a1a; border-radius: 15px; padding: 0; border: 1px solid rgba(212, 175, 55, 0.2); }
     table { width: 100%; border-collapse: collapse; }
@@ -96,6 +106,11 @@ include '../includes/header.php';
     .status-inactive { color: #dc3545; font-weight: bold; }
     .status-suspended { color: #d4af37; font-weight: bold; }
     
+    .plan-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
+    .plan-basic { background: rgba(23, 162, 184, 0.2); color: #17a2b8; border: 1px solid #17a2b8; }
+    .plan-premium { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid #d4af37; }
+    .plan-enterprise { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
+    
     .alert { padding: 15px; border-radius: 8px; margin-bottom: 1rem; }
     .alert-success { background: rgba(40, 167, 69, 0.2); border: 1px solid #28a745; color: #28a745; }
     .alert-danger { background: rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #dc3545; }
@@ -104,6 +119,7 @@ include '../includes/header.php';
     h1 { color: #d4af37; margin-bottom: 2rem; }
     .action-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .section-title { margin: 1.5rem 0 1rem 0; color: #d4af37; border-left: 3px solid #d4af37; padding-left: 1rem; }
+    .price-tag { color: #d4af37; font-size: 0.8rem; }
     
     @media (max-width: 768px) { .super-container { flex-direction: column; } .sidebar { width: 100%; } }
 </style>
@@ -151,9 +167,9 @@ include '../includes/header.php';
                     <div class="form-group">
                         <label>Subscription Plan</label>
                         <select name="subscription_plan" class="form-control" required>
-                            <option value="basic">Basic - KSh 5,000/month</option>
-                            <option value="premium">Premium - KSh 10,000/month</option>
-                            <option value="enterprise">Enterprise - KSh 20,000/month</option>
+                            <option value="basic">Basic - KSh <?php echo number_format($plan_pricing['basic'], 2); ?>/month</option>
+                            <option value="premium">Premium - KSh <?php echo number_format($plan_pricing['premium'], 2); ?>/month</option>
+                            <option value="enterprise">Enterprise - KSh <?php echo number_format($plan_pricing['enterprise'], 2); ?>/month</option>
                         </select>
                     </div>
                     <div class="form-group" style="grid-column: span 2;">
@@ -206,7 +222,11 @@ include '../includes/header.php';
                         <td><strong><?php echo htmlspecialchars($salon['salon_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($salon['salon_email']); ?></td>
                         <td><?php echo htmlspecialchars($salon['salon_phone']); ?></td>
-                        <td><?php echo ucfirst($salon['subscription_plan']); ?></td>
+                        <td>
+                            <span class="plan-badge plan-<?php echo $salon['subscription_plan']; ?>">
+                                <?php echo ucfirst($salon['subscription_plan']); ?>
+                            </span>
+                        </td>
                         <td class="status-<?php echo $salon['subscription_status']; ?>">
                             <?php echo ucfirst($salon['subscription_status']); ?>
                         </td>
@@ -214,12 +234,20 @@ include '../includes/header.php';
                         <td class="action-buttons">
                             <a href="view_salon.php?id=<?php echo $salon['id']; ?>" class="btn-primary" style="padding: 5px 12px;">👁️</a>
                             <a href="edit_salon.php?id=<?php echo $salon['id']; ?>" class="btn-primary" style="padding: 5px 12px;">✏️</a>
-                            <?php if($salon['subscription_status'] == 'active'): ?>
-                                <a href="?update_status=1&id=<?php echo $salon['id']; ?>&status=suspended" class="btn-primary" style="background: #d4af37; padding: 5px 12px;">⏸️</a>
-                            <?php elseif($salon['subscription_status'] == 'suspended'): ?>
-                                <a href="?update_status=1&id=<?php echo $salon['id']; ?>&status=active" class="btn-primary" style="background: #28a745; padding: 5px 12px;">▶️</a>
+                            
+                            <?php if($salon['subscription_plan'] == 'basic'): ?>
+                                <a href="?update_plan=1&id=<?php echo $salon['id']; ?>&plan=premium" class="btn-success" style="padding: 5px 12px;" onclick="return confirm('Upgrade this salon to Premium?')">⬆️ Premium</a>
+                            <?php elseif($salon['subscription_plan'] == 'premium'): ?>
+                                <a href="?update_plan=1&id=<?php echo $salon['id']; ?>&plan=enterprise" class="btn-success" style="padding: 5px 12px;" onclick="return confirm('Upgrade this salon to Enterprise?')">⬆️ Enterprise</a>
                             <?php endif; ?>
-                            <a href="?delete=<?php echo $salon['id']; ?>" class="btn-primary btn-danger" style="padding: 5px 12px;" onclick="return confirm('Delete this salon and ALL its data? Cannot be undone!')">🗑️</a>
+                            
+                            <?php if($salon['subscription_status'] == 'active'): ?>
+                                <a href="?update_status=1&id=<?php echo $salon['id']; ?>&status=suspended" class="btn-warning" style="padding: 5px 12px;">⏸️</a>
+                            <?php elseif($salon['subscription_status'] == 'suspended'): ?>
+                                <a href="?update_status=1&id=<?php echo $salon['id']; ?>&status=active" class="btn-success" style="padding: 5px 12px;">▶️</a>
+                            <?php endif; ?>
+                            
+                            <a href="?delete=<?php echo $salon['id']; ?>" class="btn-danger" style="padding: 5px 12px;" onclick="return confirm('Delete this salon and ALL its data? Cannot be undone!')">🗑️</a>
                         </td>
                     </tr>
                     <?php endwhile; ?>

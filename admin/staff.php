@@ -1,12 +1,17 @@
 <?php
-// admin/staff.php - FIXED: Using correct user ID from users table
+// admin/staff.php - COMPLETE FIXED FILE with working Add/Deactivate/Activate/Delete
 require_once '../config/database.php';
 
+// ============================================
+// AUTHENTICATION CHECK
+// ============================================
 if (!isLoggedIn() || !isAdmin()) {
     redirect('../auth/login.php');
 }
 
-// Get salon_id from database
+// ============================================
+// GET SALON_ID DIRECTLY FROM DATABASE
+// ============================================
 $user_id = $_SESSION['user_id'];
 $user_query = mysqli_query($conn, "SELECT salon_id FROM users WHERE id = $user_id");
 if ($user_result = mysqli_fetch_assoc($user_query)) {
@@ -17,12 +22,52 @@ if ($user_result = mysqli_fetch_assoc($user_query)) {
 }
 
 // ============================================
+// HANDLE ADD STAFF (FIXED)
+// ============================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_staff'])) {
+    $full_name = mysqli_real_escape_string($conn, $_POST['full_name'] ?? '');
+    $email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
+    $phone = mysqli_real_escape_string($conn, $_POST['phone'] ?? '');
+    $specialty = mysqli_real_escape_string($conn, $_POST['specialty'] ?? '');
+    $experience = (int)($_POST['experience'] ?? 0);
+    $bio = mysqli_real_escape_string($conn, $_POST['bio'] ?? '');
+    $password = password_hash('staff123', PASSWORD_DEFAULT);
+    
+    // Validate required fields
+    if (empty($full_name) || empty($email) || empty($phone) || empty($specialty)) {
+        $error = "Please fill in all required fields.";
+    } else {
+        // Check if email already exists
+        $email_check = mysqli_query($conn, "SELECT id FROM users WHERE email = '$email'");
+        if (mysqli_num_rows($email_check) > 0) {
+            $error = "Email already registered!";
+        } else {
+            // Insert user
+            $query = "INSERT INTO users (full_name, email, phone, password, role, salon_id, is_active) 
+                    VALUES ('$full_name', '$email', '$phone', '$password', 'staff', $salon_id, 1)";
+            
+            if (mysqli_query($conn, $query)) {
+                $new_user_id = mysqli_insert_id($conn);
+                
+                // Insert staff details
+                $detail_query = "INSERT INTO staff_details (user_id, specialty, experience_years, bio, salon_id) 
+                                VALUES ($new_user_id, '$specialty', '$experience', '$bio', $salon_id)";
+                mysqli_query($conn, $detail_query);
+                
+                $success = "Staff added successfully! Default password: staff123";
+            } else {
+                $error = "Failed to add staff: " . mysqli_error($conn);
+            }
+        }
+    }
+}
+
+// ============================================
 // HANDLE DEACTIVATE STAFF
 // ============================================
 if (isset($_GET['deactivate']) && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     
-    // DEBUG: Verify the ID exists
     $check = mysqli_query($conn, "SELECT id FROM users WHERE id = $id AND salon_id = $salon_id AND role = 'staff'");
     if (mysqli_num_rows($check) == 1) {
         $query = "UPDATE users SET is_active = 0 WHERE id = $id AND role = 'staff' AND salon_id = $salon_id";
@@ -76,10 +121,10 @@ if (isset($_GET['delete']) && isset($_GET['id'])) {
 }
 
 // ============================================
-// GET STAFF LIST - USING u.id (CORRECT USER ID)
+// GET STAFF LIST (USING CORRECT USER ID)
 // ============================================
-$staff_query = "SELECT u.id, u.full_name, u.email, u.phone, u.is_active, 
-                       sd.specialty, sd.experience_years
+$staff_query = "SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at,
+                    sd.specialty, sd.experience_years, sd.bio
                 FROM users u 
                 LEFT JOIN staff_details sd ON u.id = sd.user_id 
                 WHERE u.role = 'staff' AND u.salon_id = $salon_id 
@@ -105,20 +150,20 @@ include '../includes/header.php';
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
     .form-group { margin-bottom: 1rem; }
     .form-group label { display: block; margin-bottom: 0.5rem; color: #d4af37; font-weight: 500; }
-    .form-control, select, textarea { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
-    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; }
-    .btn-primary:hover { background: #f9e547; }
-    .btn-danger { background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; }
+    .form-control, select, textarea { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; font-size: 0.95rem; }
+    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+    .btn-primary:hover { background: #f9e547; transform: translateY(-2px); }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; transition: all 0.3s; }
     .btn-danger:hover { background: #c82333; }
-    .btn-warning { background: #d4af37; color: #050505; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; }
+    .btn-warning { background: #d4af37; color: #050505; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; transition: all 0.3s; }
     .btn-warning:hover { background: #f9e547; }
-    .btn-success { background: #28a745; color: white; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; }
+    .btn-success { background: #28a745; color: white; border: none; padding: 6px 15px; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 0.75rem; transition: all 0.3s; }
     .btn-success:hover { background: #218838; }
     
     .table-container { overflow-x: auto; background: #1a1a1a; border-radius: 15px; padding: 1rem; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
-    th { color: #d4af37; }
+    th { color: #d4af37; font-weight: 600; }
     
     .alert { padding: 15px; border-radius: 8px; margin-bottom: 1rem; }
     .alert-success { background: rgba(40, 167, 69, 0.2); border: 1px solid #28a745; color: #28a745; }

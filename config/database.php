@@ -98,11 +98,11 @@ function hasPermission($staff_id, $permission_name) {
     }
     
     $query = "SELECT sp.can_access 
-              FROM staff_permissions sp
-              JOIN permissions p ON sp.permission_id = p.id
-              WHERE sp.staff_id = $staff_id 
-              AND p.permission_name = '$permission_name'
-              AND sp.can_access = 1";
+            FROM staff_permissions sp
+            JOIN permissions p ON sp.permission_id = p.id
+            WHERE sp.staff_id = $staff_id 
+            AND p.permission_name = '$permission_name'
+            AND sp.can_access = 1";
     
     $result = mysqli_query($conn, $query);
     
@@ -134,9 +134,9 @@ function getStaffPermissions($staff_id) {
     }
     
     $query = "SELECT p.permission_name 
-              FROM staff_permissions sp
-              JOIN permissions p ON sp.permission_id = p.id
-              WHERE sp.staff_id = $staff_id AND sp.can_access = 1";
+            FROM staff_permissions sp
+            JOIN permissions p ON sp.permission_id = p.id
+            WHERE sp.staff_id = $staff_id AND sp.can_access = 1";
     
     $result = mysqli_query($conn, $query);
     
@@ -234,4 +234,142 @@ function sendEmail($to, $subject, $body) {
     $headers .= "From: Salon Pro <noreply@salonpro.com>\r\n";
     return mail($to, $subject, $body, $headers);
 }
+
+// ============================================
+// PLAN FEATURE ACCESS FUNCTIONS
+// ============================================
+
+/**
+ * Get all features available for a specific plan
+ * @param string $plan - 'basic', 'premium', or 'enterprise'
+ * @return array - List of features available for the plan
+ */
+function getPlanFeatures($plan) {
+    $features = [
+        'basic' => [
+            'appointments',
+            'customers',
+            'staff',
+            'services',
+            'payments'
+        ],
+        'premium' => [
+            'appointments',
+            'customers',
+            'staff',
+            'services',
+            'payments',
+            'reports',
+            'permissions'
+        ],
+        'enterprise' => [
+            'appointments',
+            'customers',
+            'staff',
+            'services',
+            'payments',
+            'reports',
+            'permissions',
+            'multi_branch',
+            'advanced_analytics',
+            'priority_support'
+        ]
+    ];
+    
+    return isset($features[$plan]) ? $features[$plan] : $features['basic'];
+}
+
+/**
+ * Check if a specific feature is available for a salon's plan
+ * @param int $salon_id - The salon ID
+ * @param string $feature - The feature to check (e.g., 'reports')
+ * @return bool - True if feature is available
+ */
+function hasFeature($salon_id, $feature) {
+    global $conn;
+    
+    $query = "SELECT subscription_plan FROM salons WHERE id = $salon_id";
+    $result = mysqli_query($conn, $query);
+    
+    if ($result && $row = mysqli_fetch_assoc($result)) {
+        $plan = $row['subscription_plan'];
+        $features = getPlanFeatures($plan);
+        return in_array($feature, $features);
+    }
+    
+    return false;
+}
+
+/**
+ * Get the current plan for a salon
+ * @param int $salon_id - The salon ID
+ * @return string - 'basic', 'premium', or 'enterprise'
+ */
+function getSalonPlan($salon_id) {
+    global $conn;
+    
+    $query = "SELECT subscription_plan FROM salons WHERE id = $salon_id";
+    $result = mysqli_query($conn, $query);
+    
+    if ($result && $row = mysqli_fetch_assoc($result)) {
+        return $row['subscription_plan'];
+    }
+    
+    return 'basic';
+}
+
+/**
+ * Get upgrade message for a salon owner based on their current plan
+ * @param string $current_plan - 'basic', 'premium', or 'enterprise'
+ * @return array|null - Upgrade info or null if on highest plan
+ */
+function getUpgradeMessage($current_plan) {
+    switch($current_plan) {
+        case 'basic':
+            return [
+                'message' => "You're on the Basic plan.",
+                'button' => 'Upgrade to Premium →',
+                'target' => 'premium',
+                'features' => ['Reports & Analytics', 'Staff Permissions']
+            ];
+        case 'premium':
+            return [
+                'message' => "You're on the Premium plan.",
+                'button' => 'Upgrade to Enterprise →',
+                'target' => 'enterprise',
+                'features' => ['Multi-Branch Support', 'Advanced Analytics', 'Priority Support']
+            ];
+        case 'enterprise':
+            return null; // Already on highest plan
+        default:
+            return null;
+    }
+}
+
+/**
+ * Get plan pricing (can be moved to settings later)
+ * @return array - Plan pricing in KSh
+ */
+function getPlanPricing() {
+    return [
+        'basic' => 0,
+        'premium' => 10000,
+        'enterprise' => 20000
+    ];
+}
+
+/**
+ * Get plan label (human-readable)
+ * @param string $plan - 'basic', 'premium', or 'enterprise'
+ * @return string - Human-readable plan name
+ */
+function getPlanLabel($plan) {
+    $labels = [
+        'basic' => 'Basic',
+        'premium' => 'Premium',
+        'enterprise' => 'Enterprise'
+    ];
+    return isset($labels[$plan]) ? $labels[$plan] : ucfirst($plan);
+}
+
 ?>

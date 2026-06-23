@@ -1,12 +1,32 @@
 <?php
-// admin/reports.php - FIXED with salon_id filtering
+// admin/reports.php - UPDATED with feature access check
 require_once '../config/database.php';
 
+// Check if user is admin (salon owner)
 if (!isLoggedIn() || !isAdmin()) {
     redirect('../auth/login.php');
 }
 
+// Get salon_id from session
 $salon_id = $_SESSION['salon_id'] ?? 0;
+
+if ($salon_id <= 0) {
+    $user_id = $_SESSION['user_id'];
+    $user_query = mysqli_query($conn, "SELECT salon_id FROM users WHERE id = $user_id");
+    if ($user_result = mysqli_fetch_assoc($user_query)) {
+        $salon_id = $user_result['salon_id'];
+        $_SESSION['salon_id'] = $salon_id;
+    }
+}
+
+// ============================================
+// FEATURE ACCESS CHECK
+// ============================================
+if (!hasFeature($salon_id, 'reports')) {
+    // Redirect to dashboard with upgrade message
+    $_SESSION['upgrade_required'] = 'reports';
+    redirect('dashboard.php');
+}
 
 // Get date filter
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
@@ -110,6 +130,7 @@ include '../includes/header.php';
             <li><a href="customers.php">👤 Customers</a></li>
             <li><a href="payments.php">💰 Payments</a></li>
             <li><a href="reports.php" class="active">📈 Reports</a></li>
+            <li><a href="profile.php">⚙️ My Profile</a></li>
             <li><a href="../auth/logout.php">🚪 Logout</a></li>
         </ul>
     </aside>
