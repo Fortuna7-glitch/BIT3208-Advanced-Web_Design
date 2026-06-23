@@ -1,10 +1,12 @@
 <?php
-// admin/services.php
+// admin/services.php - FIXED with salon_id filtering
 require_once '../config/database.php';
 
-if (!isLoggedIn() || !isStaff()) {
+if (!isLoggedIn() || !isAdmin()) {
     redirect('../auth/login.php');
 }
+
+$salon_id = $_SESSION['salon_id'] ?? 0;
 
 // Handle add/edit/delete
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -15,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $price = mysqli_real_escape_string($conn, $_POST['price']);
             $duration = mysqli_real_escape_string($conn, $_POST['duration']);
             
-            $query = "INSERT INTO services (service_name, description, price, duration_minutes) 
-                      VALUES ('$service_name', '$description', '$price', '$duration')";
+            // Auto-assign salon_id from session
+            $query = "INSERT INTO services (service_name, description, price, duration_minutes, salon_id, is_active) 
+                      VALUES ('$service_name', '$description', '$price', '$duration', $salon_id, 1)";
             mysqli_query($conn, $query);
             
         } elseif ($_POST['action'] == 'update') {
@@ -26,22 +29,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $price = mysqli_real_escape_string($conn, $_POST['price']);
             $duration = mysqli_real_escape_string($conn, $_POST['duration']);
             
-            $query = "UPDATE services SET service_name='$service_name', description='$description', 
-                      price='$price', duration_minutes='$duration' WHERE id=$id";
+            $query = "UPDATE services SET 
+                      service_name='$service_name', 
+                      description='$description', 
+                      price='$price', 
+                      duration_minutes='$duration' 
+                      WHERE id=$id AND salon_id = $salon_id";
             mysqli_query($conn, $query);
             
         } elseif ($_POST['action'] == 'delete') {
             $id = mysqli_real_escape_string($conn, $_POST['id']);
-            $query = "DELETE FROM services WHERE id=$id";
+            $query = "DELETE FROM services WHERE id=$id AND salon_id = $salon_id";
             mysqli_query($conn, $query);
         }
     }
 }
 
-$services = mysqli_query($conn, "SELECT * FROM services ORDER BY id DESC");
+$services = mysqli_query($conn, "SELECT * FROM services WHERE salon_id = $salon_id ORDER BY id DESC");
 
 include '../includes/header.php';
 ?>
+
+<style>
+    .dashboard-container { display: flex; min-height: 100vh; }
+    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; }
+    .sidebar-menu { list-style: none; padding: 0; }
+    .sidebar-menu li { margin-bottom: 0.5rem; }
+    .sidebar-menu a { display: block; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; }
+    .sidebar-menu a:hover, .sidebar-menu a.active { background: #d4af37; color: #050505; }
+    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; }
+    .form-card { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(212, 175, 55, 0.3); }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; color: #d4af37; font-weight: 500; }
+    .form-control { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
+    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; }
+    .table-container { overflow-x: auto; background: #1a1a1a; border-radius: 15px; padding: 1rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+    th { color: #d4af37; }
+    h1 { color: #d4af37; }
+    .btn-small { padding: 5px 10px; font-size: 0.75rem; margin: 0 2px; }
+    @media (max-width: 768px) { .dashboard-container { flex-direction: column; } .sidebar { width: 100%; } }
+</style>
 
 <div class="dashboard-container">
     <aside class="sidebar">
@@ -58,24 +88,34 @@ include '../includes/header.php';
     </aside>
     
     <main class="main-content">
-        <h1>Service Management ✨</h1>
+        <h1>Service Management 💇</h1>
         
-        <!-- Add Service Form -->
-        <div style="background: var(--gray); border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem;">
-            <h3 style="color: var(--gold);">➕ Add New Service</h3>
+        <div class="form-card">
+            <h3 style="color: #d4af37;">➕ Add New Service</h3>
             <form method="POST">
                 <input type="hidden" name="action" value="add">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                    <input type="text" name="service_name" placeholder="Service Name" class="form-control" required>
-                    <input type="text" name="description" placeholder="Description" class="form-control">
-                    <input type="number" name="price" placeholder="Price (KSh)" class="form-control" required step="0.01">
-                    <input type="number" name="duration" placeholder="Duration (minutes)" class="form-control" required>
-                    <button type="submit" class="btn btn-primary">Add Service</button>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Service Name</label>
+                        <input type="text" name="service_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" name="description" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Price (KSh)</label>
+                        <input type="number" name="price" class="form-control" required step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration (minutes)</label>
+                        <input type="number" name="duration" class="form-control" required>
+                    </div>
                 </div>
+                <button type="submit" class="btn-primary">➕ Add Service</button>
             </form>
         </div>
         
-        <!-- Services List -->
         <div class="table-container">
             <table>
                 <thead>
@@ -99,8 +139,8 @@ include '../includes/header.php';
                             <td><input type="number" name="price" value="<?php echo $service['price']; ?>" class="form-control" style="width: 100px;" step="0.01"></td>
                             <td><input type="number" name="duration" value="<?php echo $service['duration_minutes']; ?>" class="form-control" style="width: 80px;"></td>
                             <td>
-                                <button type="submit" name="action" value="update" class="btn btn-outline" style="padding: 5px 10px;">Update</button>
-                                <button type="submit" name="action" value="delete" class="btn btn-outline" style="padding: 5px 10px; background: #dc3545; color: white;" onclick="return confirm('Delete this service?')">Delete</button>
+                                <button type="submit" name="action" value="update" class="btn-primary btn-small">Update</button>
+                                <button type="submit" name="action" value="delete" class="btn-primary btn-small" style="background: #dc3545;" onclick="return confirm('Delete this service?')">Delete</button>
                             </td>
                         </form>
                     </tr>

@@ -1,74 +1,68 @@
 <?php
-// admin/dashboard.php - Add this near the top
+// admin/dashboard.php - FIXED with salon_id filtering
 require_once '../config/database.php';
 
-// Check if this is a demo view from super admin
-$is_demo = isset($_SESSION['demo_mode']) && $_SESSION['demo_mode'] === true;
+// Check if user is admin (salon owner)
+if (!isLoggedIn() || !isAdmin()) {
+    redirect('../auth/login.php');
+}
 
-// If it's a demo, allow access but show read-only banner
-if (!$is_demo) {
-    // Regular access control for normal admins
-    if (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'super_admin') {
-        header("Location: ../super_admin/dashboard.php");
-        exit();
-    }
-    
-    if (!isLoggedIn() || !isAdmin()) {
-        redirect('../auth/login.php');
+// Get the salon ID from session
+$salon_id = $_SESSION['salon_id'] ?? 0;
+
+if ($salon_id <= 0) {
+    // If salon_id is not set, try to get it from the user record
+    $user_id = $_SESSION['user_id'];
+    $user_query = mysqli_query($conn, "SELECT salon_id FROM users WHERE id = $user_id");
+    if ($user_result = mysqli_fetch_assoc($user_query)) {
+        $salon_id = $user_result['salon_id'];
+        $_SESSION['salon_id'] = $salon_id;
     }
 }
 
-// Add a demo banner if in demo mode
-if ($is_demo) {
-    echo '<div style="background: #d4af37; color: #050505; text-align: center; padding: 10px; font-weight: bold;">
-            🔍 DEMO MODE: You are viewing this as a Salon Owner would see it. 
-            <a href="../super_admin/dashboard.php" style="color: #050505; text-decoration: underline;">Exit Demo</a>
-        </div>';
-}
-
-// Get statistics
+// Get statistics for THIS salon only
 $total_customers = 0;
 $total_appointments = 0;
 $total_revenue = 0;
 $pending_appointments = 0;
 
-$customers_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM users WHERE role = 'customer'");
+$customers_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM users WHERE role = 'customer' AND salon_id = $salon_id");
 if ($customers_query) {
     $total_customers = mysqli_fetch_assoc($customers_query)['count'];
 }
 
-$appointments_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM appointments");
+$appointments_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM appointments WHERE salon_id = $salon_id");
 if ($appointments_query) {
     $total_appointments = mysqli_fetch_assoc($appointments_query)['count'];
 }
 
-$revenue_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status = 'paid'");
+$revenue_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM payments WHERE payment_status = 'paid' AND salon_id = $salon_id");
 if ($revenue_query) {
     $result = mysqli_fetch_assoc($revenue_query);
     $total_revenue = $result['total'] ?? 0;
 }
 
-$pending_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM appointments WHERE status = 'pending' OR status = 'confirmed'");
+$pending_query = mysqli_query($conn, "SELECT COUNT(*) as count FROM appointments WHERE (status = 'pending' OR status = 'confirmed') AND salon_id = $salon_id");
 if ($pending_query) {
     $pending_appointments = mysqli_fetch_assoc($pending_query)['count'];
 }
 
-// Get today's appointments
+// Get today's appointments for THIS salon
 $today = date('Y-m-d');
 $today_appointments = mysqli_query($conn, "SELECT a.*, c.full_name as customer_name, s.service_name 
                                         FROM appointments a 
                                         JOIN users c ON a.customer_id = c.id 
                                         JOIN services s ON a.service_id = s.id 
-                                        WHERE a.appointment_date = '$today' 
+                                        WHERE a.appointment_date = '$today' AND a.salon_id = $salon_id 
                                         ORDER BY a.appointment_time ASC");
 
-// Get queue
+// Get queue for THIS salon
 $queue_query = mysqli_query($conn, "SELECT a.*, u.full_name as customer_name, s.service_name, st.full_name as staff_name 
                                     FROM appointments a 
                                     JOIN users u ON a.customer_id = u.id 
                                     JOIN services s ON a.service_id = s.id 
                                     LEFT JOIN users st ON a.staff_id = st.id 
-                                    WHERE a.status NOT IN ('completed', 'cancelled', 'served') 
+                                    WHERE a.salon_id = $salon_id AND a.status NOT IN ('completed', 'cancelled', 'served') 
                                     ORDER BY a.appointment_date ASC, a.appointment_time ASC, a.queue_position ASC");
 
 include '../includes/header.php';
@@ -89,6 +83,7 @@ include '../includes/header.php';
     .queue-item { background: #2a2a2a; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
     .queue-number { background: #d4af37; color: #050505; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 1rem; }
     .btn-serve { background: #28a745; color: white; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer; }
+    .btn-serve:hover { background: #218838; }
     .table-container { overflow-x: auto; background: #1a1a1a; border-radius: 15px; padding: 1rem; margin-top: 1rem; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
@@ -102,7 +97,7 @@ include '../includes/header.php';
     <aside class="sidebar">
         <div style="text-align: center; margin-bottom: 2rem;">
             <h3 style="color: #d4af37;">👑 <?php echo htmlspecialchars($_SESSION['user_name']); ?></h3>
-            <p>Administrator</p>
+            <p>Salon Owner</p>
         </div>
         <ul class="sidebar-menu">
             <li><a href="dashboard.php" class="active">📊 Dashboard</a></li>
@@ -112,7 +107,6 @@ include '../includes/header.php';
             <li><a href="customers.php">👤 Customers</a></li>
             <li><a href="payments.php">💰 Payments</a></li>
             <li><a href="reports.php">📈 Reports</a></li>
-            <li><a href="permissions.php">🔐 Permissions</a></li>
             <li><a href="../auth/logout.php">🚪 Logout</a></li>
         </ul>
     </aside>

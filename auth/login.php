@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             
             <div class="auth-footer">
-                <p>Don't have an account? <a href="register.php?redirect=<?php echo urlencode($redirect_url); ?>&salon_id=<?php echo $salon_id; ?>">Register here</a></p>
+                <p>Don't have an account? <a href="register.php?salon_id=<?php echo isset($_GET['salon_id']) ? (int)$_GET['salon_id'] : 2; ?>">Register here</a></p>
             </div>
             
             <div class="back-home">

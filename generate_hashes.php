@@ -1,6 +1,6 @@
 <?php
 // generate_hashes.php - Run this ONCE, then save the output
-$passwords = ['super123', 'owner123', 'admin123'];
+$passwords = ['super123', 'owner123', 'admin123', 'staff123']; // Add any other default passwords you need
 
 echo "<h1>Generated Password Hashes for YOUR Server</h1>";
 echo "<pre>";
