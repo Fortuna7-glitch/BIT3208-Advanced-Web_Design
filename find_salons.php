@@ -1,27 +1,21 @@
 <?php
-// find_salons.php - Public salon directory with search and filter
+// find_salons.php - RESPONSIVE REWRITE
 require_once 'config/database.php';
 include 'includes/header.php';
 
-// Get search parameters
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 $location = isset($_GET['location']) ? mysqli_real_escape_string($conn, $_GET['location']) : '';
 
-// Build query based on search/filter
 $query = "SELECT * FROM salons WHERE subscription_status = 'active'";
-
 if (!empty($search)) {
     $query .= " AND (salon_name LIKE '%$search%' OR salon_email LIKE '%$search%' OR salon_phone LIKE '%$search%')";
 }
-
 if (!empty($location)) {
     $query .= " AND salon_address LIKE '%$location%'";
 }
-
 $query .= " ORDER BY salon_name ASC";
 $salons = mysqli_query($conn, $query);
 
-// Get unique locations for filter dropdown
 $locations_query = "SELECT DISTINCT salon_address FROM salons WHERE subscription_status = 'active' AND salon_address IS NOT NULL AND salon_address != '' LIMIT 10";
 $locations_result = mysqli_query($conn, $locations_query);
 $locations = [];
@@ -31,7 +25,6 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
 ?>
 
 <style>
-    /* Directory Page Styles */
     .directory-hero {
         background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
         padding: 3rem 5%;
@@ -43,19 +36,10 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         font-family: 'Playfair Display', serif;
         margin-bottom: 0.5rem;
     }
-    .directory-hero h1 span {
-        color: #d4af37;
-    }
-    .directory-hero p {
-        color: #aaa;
-        margin-bottom: 2rem;
-    }
-    
-    /* Search Bar */
-    .search-container {
-        max-width: 800px;
-        margin: 0 auto;
-    }
+    .directory-hero h1 span { color: #d4af37; }
+    .directory-hero p { color: #aaa; margin-bottom: 2rem; }
+
+    .search-container { max-width: 800px; margin: 0 auto; }
     .search-form {
         display: flex;
         gap: 1rem;
@@ -64,7 +48,7 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
     }
     .search-input {
         flex: 2;
-        min-width: 200px;
+        min-width: 180px;
         padding: 14px 18px;
         background: #2a2a2a;
         border: 1px solid rgba(212, 175, 55, 0.3);
@@ -78,7 +62,7 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
     }
     .location-select {
         flex: 1;
-        min-width: 150px;
+        min-width: 140px;
         padding: 14px 18px;
         background: #2a2a2a;
         border: 1px solid rgba(212, 175, 55, 0.3);
@@ -97,10 +81,7 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         cursor: pointer;
         transition: all 0.3s;
     }
-    .search-btn:hover {
-        background: #f9e547;
-        transform: translateY(-2px);
-    }
+    .search-btn:hover { background: #f9e547; transform: translateY(-2px); }
     .clear-btn {
         padding: 14px 25px;
         background: transparent;
@@ -110,24 +91,18 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         cursor: pointer;
         transition: all 0.3s;
     }
-    .clear-btn:hover {
-        background: rgba(212, 175, 55, 0.2);
-    }
-    
-    /* Results Summary */
+    .clear-btn:hover { background: rgba(212, 175, 55, 0.2); }
+
     .results-summary {
         padding: 1rem 5%;
         color: #aaa;
         border-bottom: 1px solid rgba(212, 175, 55, 0.1);
     }
-    
-    /* Salons Grid */
-    .salons-container {
-        padding: 3rem 5%;
-    }
+
+    .salons-container { padding: 3rem 5%; }
     .salons-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         gap: 2rem;
         max-width: 1400px;
         margin: 0 auto;
@@ -149,36 +124,15 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 1rem;
+        flex-wrap: wrap;
     }
-    .salon-name {
-        font-size: 1.3rem;
-        font-weight: bold;
-    }
-    .salon-rating {
-        color: #d4af37;
-        font-size: 0.9rem;
-    }
-    .salon-address {
-        color: #aaa;
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-    }
-    .salon-contact {
-        color: #888;
-        margin-bottom: 0.5rem;
-        font-size: 0.85rem;
-    }
-    .salon-divider {
-        height: 1px;
-        background: rgba(212, 175, 55, 0.2);
-        margin: 1rem 0;
-    }
+    .salon-name { font-size: 1.2rem; font-weight: bold; }
+    .salon-rating { color: #d4af37; font-size: 0.9rem; }
+    .salon-address { color: #aaa; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .salon-contact { color: #888; margin-bottom: 0.5rem; font-size: 0.85rem; }
+    .salon-divider { height: 1px; background: rgba(212, 175, 55, 0.2); margin: 1rem 0; }
     .salon-stats {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        font-size: 0.8rem;
-        color: #888;
+        display: flex; gap: 1rem; margin-bottom: 1rem; font-size: 0.8rem; color: #888; flex-wrap: wrap;
     }
     .btn-view-salon {
         display: inline-block;
@@ -196,8 +150,7 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         background: #d4af37;
         color: #050505;
     }
-    
-    /* No Results */
+
     .no-results {
         text-align: center;
         padding: 4rem;
@@ -206,29 +159,38 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
         max-width: 500px;
         margin: 0 auto;
     }
-    .no-results h3 {
-        color: #d4af37;
-        margin-bottom: 1rem;
+    .no-results h3 { color: #d4af37; margin-bottom: 1rem; }
+    .no-results p { color: #aaa; margin-bottom: 1.5rem; }
+
+    @media (max-width: 1024px) {
+        .salons-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     }
-    .no-results p {
-        color: #aaa;
-        margin-bottom: 1.5rem;
-    }
-    
+
     @media (max-width: 768px) {
+        .directory-hero { padding: 2rem 4%; }
+        .directory-hero h1 { font-size: 2rem; }
         .search-form { flex-direction: column; }
         .search-input, .location-select, .search-btn, .clear-btn { width: 100%; }
-        .salons-grid { grid-template-columns: 1fr; }
-        .directory-hero h1 { font-size: 1.8rem; }
+
+        .salons-container { padding: 2rem 4%; }
+        .salons-grid { grid-template-columns: 1fr; max-width: 500px; margin: 0 auto; }
+    }
+
+    @media (max-width: 480px) {
+        .directory-hero h1 { font-size: 1.6rem; }
+        .directory-hero p { font-size: 0.9rem; }
+        .search-input, .location-select { padding: 12px 14px; font-size: 0.9rem; }
+        .search-btn, .clear-btn { padding: 12px 20px; font-size: 0.9rem; }
+
+        .salon-card { padding: 1rem; }
+        .salon-name { font-size: 1rem; }
+        .salon-stats { font-size: 0.7rem; gap: 0.5rem; }
     }
 </style>
 
-<!-- Directory Hero -->
 <section class="directory-hero">
     <h1>Find Your Perfect <span>Salon</span></h1>
     <p>Discover and book appointments at the best salons near you</p>
-    
-    <!-- Search Form -->
     <div class="search-container">
         <form method="GET" action="" class="search-form">
             <input type="text" name="search" class="search-input" placeholder="🔍 Search by salon name..." value="<?php echo htmlspecialchars($search); ?>">
@@ -248,10 +210,9 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
     </div>
 </section>
 
-<!-- Results Summary -->
 <section class="results-summary">
     <p>
-        <?php 
+        <?php
         $total = mysqli_num_rows($salons);
         echo "Found <strong style='color: #d4af37;'>$total</strong> salon" . ($total != 1 ? 's' : '');
         if(!empty($search)) echo " matching '<strong>$search</strong>'";
@@ -260,20 +221,12 @@ while ($row = mysqli_fetch_assoc($locations_result)) {
     </p>
 </section>
 
-<!-- Salons Grid -->
 <section class="salons-container">
     <?php if(mysqli_num_rows($salons) > 0): ?>
         <div class="salons-grid">
-            <?php while($salon = mysqli_fetch_assoc($salons)): 
-                // Get service count for this salon
-                $service_count_query = "SELECT COUNT(*) as count FROM services WHERE salon_id = {$salon['id']} AND is_active = 1";
-                $service_result = mysqli_query($conn, $service_count_query);
-                $service_count = mysqli_fetch_assoc($service_result)['count'] ?? 0;
-                
-                // Get staff count for this salon
-                $staff_count_query = "SELECT COUNT(*) as count FROM users WHERE salon_id = {$salon['id']} AND role = 'staff'";
-                $staff_result = mysqli_query($conn, $staff_count_query);
-                $staff_count = mysqli_fetch_assoc($staff_result)['count'] ?? 0;
+            <?php while($salon = mysqli_fetch_assoc($salons)):
+                $service_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM services WHERE salon_id = {$salon['id']} AND is_active = 1"))['count'] ?? 0;
+                $staff_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as count FROM users WHERE salon_id = {$salon['id']} AND role = 'staff'"))['count'] ?? 0;
             ?>
                 <div class="salon-card">
                     <div class="salon-header">

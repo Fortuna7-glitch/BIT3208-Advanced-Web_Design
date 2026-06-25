@@ -1,15 +1,12 @@
 <?php
-// admin/reports.php - UPDATED with feature access check
+// admin/reports.php - RESPONSIVE REWRITE
 require_once '../config/database.php';
 
-// Check if user is admin (salon owner)
 if (!isLoggedIn() || !isAdmin()) {
     redirect('../auth/login.php');
 }
 
-// Get salon_id from session
 $salon_id = $_SESSION['salon_id'] ?? 0;
-
 if ($salon_id <= 0) {
     $user_id = $_SESSION['user_id'];
     $user_query = mysqli_query($conn, "SELECT salon_id FROM users WHERE id = $user_id");
@@ -19,109 +16,99 @@ if ($salon_id <= 0) {
     }
 }
 
-// ============================================
-// FEATURE ACCESS CHECK
-// ============================================
 if (!hasFeature($salon_id, 'reports')) {
-    // Redirect to dashboard with upgrade message
     $_SESSION['upgrade_required'] = 'reports';
     redirect('dashboard.php');
 }
 
-// Get date filter
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-t');
 
-// Get report data for THIS salon only
-$revenue_query = "SELECT DATE(p.payment_date) as date, SUM(p.amount) as daily_revenue, COUNT(*) as transaction_count 
-                  FROM payments p
-                  JOIN appointments a ON p.appointment_id = a.id 
-                  WHERE p.payment_status = 'paid' 
-                  AND a.salon_id = $salon_id
-                  AND DATE(p.payment_date) BETWEEN '$start_date' AND '$end_date'
-                  GROUP BY DATE(p.payment_date) 
-                  ORDER BY date DESC";
-$revenue_data = mysqli_query($conn, $revenue_query);
-
-// Service popularity for THIS salon
-$popular_services = mysqli_query($conn, "SELECT s.service_name, COUNT(a.id) as booking_count, SUM(s.price) as total_revenue
-                                         FROM services s
-                                         JOIN appointments a ON s.id = a.service_id
-                                         WHERE a.salon_id = $salon_id
-                                         AND a.appointment_date BETWEEN '$start_date' AND '$end_date'
-                                         GROUP BY s.id
-                                         ORDER BY booking_count DESC
-                                         LIMIT 5");
-
-// Staff performance for THIS salon
-$staff_performance = mysqli_query($conn, "SELECT u.full_name, COUNT(a.id) as appointments_done, SUM(s.price) as revenue_generated
-                                          FROM users u
-                                          JOIN appointments a ON u.id = a.staff_id
-                                          JOIN services s ON a.service_id = s.id
-                                          WHERE a.status = 'served' 
-                                          AND a.salon_id = $salon_id
-                                          AND a.appointment_date BETWEEN '$start_date' AND '$end_date'
-                                          GROUP BY u.id
-                                          ORDER BY appointments_done DESC");
-
-// Total summary for THIS salon
-$summary = mysqli_fetch_assoc(mysqli_query($conn, "SELECT 
-    COUNT(DISTINCT a.customer_id) as total_customers,
-    COUNT(a.id) as total_appointments,
-    SUM(CASE WHEN a.status = 'served' THEN 1 ELSE 0 END) as completed_services,
-    SUM(p.amount) as total_revenue
-    FROM appointments a
-    LEFT JOIN payments p ON a.id = p.appointment_id AND p.payment_status = 'paid'
-    WHERE a.salon_id = $salon_id
-    AND a.appointment_date BETWEEN '$start_date' AND '$end_date'"));
+$revenue_data = mysqli_query($conn, "SELECT DATE(p.payment_date) as date, SUM(p.amount) as daily_revenue, COUNT(*) as transaction_count FROM payments p JOIN appointments a ON p.appointment_id = a.id WHERE p.payment_status = 'paid' AND a.salon_id = $salon_id AND DATE(p.payment_date) BETWEEN '$start_date' AND '$end_date' GROUP BY DATE(p.payment_date) ORDER BY date DESC");
+$popular_services = mysqli_query($conn, "SELECT s.service_name, COUNT(a.id) as booking_count, SUM(s.price) as total_revenue FROM services s JOIN appointments a ON s.id = a.service_id WHERE a.salon_id = $salon_id AND a.appointment_date BETWEEN '$start_date' AND '$end_date' GROUP BY s.id ORDER BY booking_count DESC LIMIT 5");
+$staff_performance = mysqli_query($conn, "SELECT u.full_name, COUNT(a.id) as appointments_done, SUM(s.price) as revenue_generated FROM users u JOIN appointments a ON u.id = a.staff_id JOIN services s ON a.service_id = s.id WHERE a.status = 'served' AND a.salon_id = $salon_id AND a.appointment_date BETWEEN '$start_date' AND '$end_date' GROUP BY u.id ORDER BY appointments_done DESC");
+$summary = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINCT a.customer_id) as total_customers, COUNT(a.id) as total_appointments, SUM(CASE WHEN a.status = 'served' THEN 1 ELSE 0 END) as completed_services, SUM(p.amount) as total_revenue FROM appointments a LEFT JOIN payments p ON a.id = p.appointment_id AND p.payment_status = 'paid' WHERE a.salon_id = $salon_id AND a.appointment_date BETWEEN '$start_date' AND '$end_date'"));
 
 include '../includes/header.php';
 ?>
 
 <style>
     .dashboard-container { display: flex; min-height: 100vh; }
-    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; }
+    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; flex-shrink: 0; }
     .sidebar-menu { list-style: none; padding: 0; }
     .sidebar-menu li { margin-bottom: 0.5rem; }
-    .sidebar-menu a { display: block; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s; }
+    .sidebar-menu a { display: flex; align-items: center; gap: 0.8rem; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s; }
     .sidebar-menu a:hover, .sidebar-menu a.active { background: #d4af37; color: #050505; }
-    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; }
-    
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; min-width: 0; }
+    h1 { color: #d4af37; margin-bottom: 1.5rem; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
     .stat-card { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; text-align: center; border-left: 4px solid #d4af37; }
     .stat-number { font-size: 2rem; font-weight: bold; color: #d4af37; }
-    
+
     .filter-bar { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
     .filter-bar .form-group { margin-bottom: 0; }
-    .filter-bar .form-control { width: auto; min-width: 150px; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
+    .filter-bar .form-control { width: auto; min-width: 140px; padding: 10px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
     .filter-bar label { display: block; color: #d4af37; margin-bottom: 0.3rem; font-size: 0.8rem; }
-    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-weight: 600; }
-    .btn-primary:hover { background: #f9e547; }
-    
-    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; }
+    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; }
+
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem; }
     .report-card { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; border: 1px solid rgba(212, 175, 55, 0.3); }
     .report-card h3 { color: #d4af37; margin-bottom: 1rem; }
-    .table-container { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
+
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 400px; }
     th, td { padding: 10px; text-align: left; border-bottom: 1px solid rgba(212, 175, 55, 0.15); }
-    th { color: #d4af37; }
-    
-    h1 { color: #d4af37; margin-bottom: 2rem; }
-    .section-title { color: #d4af37; margin: 2rem 0 1rem 0; font-size: 1.2rem; }
-    
-    @media print {
-        .sidebar, .navbar, .filter-bar, .btn-primary, .footer { display: none !important; }
-        .main-content { margin: 0; padding: 0; }
-        body { background: white; color: black; }
-        .stat-card, .report-card { background: #f5f5f5 !important; color: black !important; border: 1px solid #ddd !important; }
-        .stat-number { color: #d4af37 !important; }
+    th { color: #d4af37; font-weight: 600; }
+
+    .sidebar-toggle {
+        display: none;
+        background: #d4af37;
+        color: #050505;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        width: 100%;
     }
-    
-    @media (max-width: 768px) { .dashboard-container { flex-direction: column; } .sidebar { width: 100%; } .report-grid { grid-template-columns: 1fr; } }
+    .sidebar-toggle:hover { background: #f9e547; }
+
+    @media (max-width: 1024px) {
+        .report-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container { flex-direction: column; }
+        .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #d4af37; padding: 1rem; display: none; }
+        .sidebar.open { display: block; }
+        .sidebar-toggle { display: block; }
+        .main-content { padding: 1rem; }
+        h1 { font-size: 1.5rem; }
+
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .stat-card { padding: 1rem; }
+        .stat-number { font-size: 1.5rem; }
+
+        .filter-bar { flex-direction: column; align-items: stretch; }
+        .filter-bar .form-control { width: 100%; }
+
+        table { font-size: 0.75rem; min-width: 300px; }
+        th, td { padding: 6px; }
+    }
+
+    @media (max-width: 480px) {
+        .main-content { padding: 0.8rem; }
+        h1 { font-size: 1.2rem; }
+        .stats-grid { grid-template-columns: 1fr; }
+        .report-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
 <div class="dashboard-container">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggle">✕ Close Menu</button>
         <ul class="sidebar-menu">
             <li><a href="dashboard.php">📊 Dashboard</a></li>
             <li><a href="appointments.php">📅 Appointments</a></li>
@@ -134,11 +121,12 @@ include '../includes/header.php';
             <li><a href="../auth/logout.php">🚪 Logout</a></li>
         </ul>
     </aside>
-    
+
     <main class="main-content">
+        <button class="sidebar-toggle" id="sidebarOpen" style="display:none; margin-bottom:1rem;">☰ Menu</button>
+
         <h1>📈 Business Reports</h1>
-        
-        <!-- Date Filter -->
+
         <div class="filter-bar">
             <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
                 <div class="form-group">
@@ -149,41 +137,24 @@ include '../includes/header.php';
                     <label>End Date</label>
                     <input type="date" name="end_date" class="form-control" value="<?php echo $end_date; ?>">
                 </div>
-                <button type="submit" class="btn-primary">📊 Generate Report</button>
-                <button type="button" onclick="window.print()" class="btn-primary" style="background: #2a2a2a;">🖨️ Print</button>
+                <button type="submit" class="btn-primary">📊 Generate</button>
+                <button type="button" onclick="window.print()" class="btn-primary" style="background:#2a2a2a;">🖨️ Print</button>
             </form>
         </div>
-        
-        <!-- Summary Cards -->
+
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $summary['total_customers'] ?? 0; ?></div>
-                <p>Active Customers</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $summary['total_appointments'] ?? 0; ?></div>
-                <p>Total Appointments</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $summary['completed_services'] ?? 0; ?></div>
-                <p>Completed Services</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">KSh <?php echo number_format($summary['total_revenue'] ?? 0, 2); ?></div>
-                <p>Total Revenue</p>
-            </div>
+            <div class="stat-card"><div class="stat-number"><?php echo $summary['total_customers'] ?? 0; ?></div><div class="stat-label">Active Customers</div></div>
+            <div class="stat-card"><div class="stat-number"><?php echo $summary['total_appointments'] ?? 0; ?></div><div class="stat-label">Total Appointments</div></div>
+            <div class="stat-card"><div class="stat-number"><?php echo $summary['completed_services'] ?? 0; ?></div><div class="stat-label">Completed Services</div></div>
+            <div class="stat-card"><div class="stat-number">KSh <?php echo number_format($summary['total_revenue'] ?? 0, 2); ?></div><div class="stat-label">Total Revenue</div></div>
         </div>
-        
-        <!-- Report Grid -->
+
         <div class="report-grid">
-            <!-- Daily Revenue -->
             <div class="report-card">
                 <h3>📊 Daily Revenue</h3>
-                <div class="table-container">
+                <div class="table-wrapper">
                     <table>
-                        <thead>
-                            <tr><th>Date</th><th>Revenue</th><th>Transactions</th></tr>
-                        </thead>
+                        <thead><tr><th>Date</th><th>Revenue</th><th>Transactions</th></tr></thead>
                         <tbody>
                             <?php if($revenue_data && mysqli_num_rows($revenue_data) > 0): ?>
                                 <?php while($row = mysqli_fetch_assoc($revenue_data)): ?>
@@ -194,21 +165,18 @@ include '../includes/header.php';
                                 </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr><td colspan="3" style="text-align: center;">No revenue data available</td></tr>
+                                <tr><td colspan="3" style="text-align:center;">No revenue data</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            <!-- Popular Services -->
+
             <div class="report-card">
                 <h3>⭐ Popular Services</h3>
-                <div class="table-container">
+                <div class="table-wrapper">
                     <table>
-                        <thead>
-                            <tr><th>Service</th><th>Bookings</th><th>Revenue</th></tr>
-                        </thead>
+                        <thead><tr><th>Service</th><th>Bookings</th><th>Revenue</th></tr></thead>
                         <tbody>
                             <?php if($popular_services && mysqli_num_rows($popular_services) > 0): ?>
                                 <?php while($row = mysqli_fetch_assoc($popular_services)): ?>
@@ -219,21 +187,18 @@ include '../includes/header.php';
                                 </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr><td colspan="3" style="text-align: center;">No service data available</td></tr>
+                                <tr><td colspan="3" style="text-align:center;">No service data</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            <!-- Staff Performance -->
+
             <div class="report-card" style="grid-column: 1 / -1;">
                 <h3>👥 Staff Performance</h3>
-                <div class="table-container">
+                <div class="table-wrapper">
                     <table>
-                        <thead>
-                            <tr><th>Staff</th><th>Services Done</th><th>Revenue Generated</th></tr>
-                        </thead>
+                        <thead><tr><th>Staff</th><th>Services Done</th><th>Revenue Generated</th></tr></thead>
                         <tbody>
                             <?php if($staff_performance && mysqli_num_rows($staff_performance) > 0): ?>
                                 <?php while($row = mysqli_fetch_assoc($staff_performance)): ?>
@@ -244,7 +209,7 @@ include '../includes/header.php';
                                 </tr>
                                 <?php endwhile; ?>
                             <?php else: ?>
-                                <tr><td colspan="3" style="text-align: center;">No staff performance data available</td></tr>
+                                <tr><td colspan="3" style="text-align:center;">No staff data</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -253,5 +218,49 @@ include '../includes/header.php';
         </div>
     </main>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOpen = document.getElementById('sidebarOpen');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        function isMobile() { return window.innerWidth <= 768; }
+
+        function handleSidebar() {
+            if (isMobile()) {
+                sidebar.classList.remove('open');
+                sidebarOpen.style.display = 'block';
+                sidebarToggle.style.display = 'block';
+            } else {
+                sidebar.classList.add('open');
+                sidebarOpen.style.display = 'none';
+                sidebarToggle.style.display = 'none';
+            }
+        }
+
+        if (sidebarOpen) {
+            sidebarOpen.addEventListener('click', function() {
+                sidebar.classList.add('open');
+            });
+        }
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+            });
+        }
+
+        document.addEventListener('click', function(event) {
+            if (isMobile() && sidebar.classList.contains('open')) {
+                if (!sidebar.contains(event.target) && event.target !== sidebarOpen) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        window.addEventListener('resize', handleSidebar);
+        handleSidebar();
+    });
+</script>
 
 <?php include '../includes/footer.php'; ?>
