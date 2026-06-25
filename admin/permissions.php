@@ -1,14 +1,12 @@
 <?php
-// admin/permissions.php - UPDATED with feature access check
+// admin/permissions.php - UPDATED with new hamburger sidebar layout
 require_once '../config/database.php';
 
 if (!isLoggedIn() || !isAdmin()) {
     redirect('../auth/login.php');
 }
 
-// Get salon_id from session
 $salon_id = $_SESSION['salon_id'] ?? 0;
-
 if ($salon_id <= 0) {
     $user_id = $_SESSION['user_id'];
     $user_query = mysqli_query($conn, "SELECT salon_id FROM users WHERE id = $user_id");
@@ -18,9 +16,6 @@ if ($salon_id <= 0) {
     }
 }
 
-// ============================================
-// FEATURE ACCESS CHECK
-// ============================================
 if (!hasFeature($salon_id, 'permissions')) {
     $_SESSION['upgrade_required'] = 'permissions';
     redirect('dashboard.php');
@@ -54,100 +49,181 @@ include '../includes/header.php';
 ?>
 
 <style>
-    .dashboard-container { display: flex; min-height: 100vh; }
-    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; }
-    .sidebar-menu { list-style: none; padding: 0; }
-    .sidebar-menu li { margin-bottom: 0.5rem; }
-    .sidebar-menu a { display: block; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s; }
-    .sidebar-menu a:hover, .sidebar-menu a.active { background: #d4af37; color: #050505; }
-    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; }
-    
-    .permissions-container { padding: 0; }
-    .staff-card { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(212, 175, 55, 0.3); }
-    .staff-card h3 { color: #d4af37; margin-bottom: 1rem; }
-    .perm-checkbox { margin-right: 15px; margin-bottom: 10px; display: inline-block; }
-    .perm-checkbox label { margin-left: 5px; cursor: pointer; color: #ddd; }
-    .perm-checkbox input[type="checkbox"] { cursor: pointer; accent-color: #d4af37; }
-    .btn-primary { background: #d4af37; color: #050505; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
-    .btn-primary:hover { background: #f9e547; transform: translateY(-2px); }
-    .alert-success { background: rgba(40, 167, 69, 0.2); border: 1px solid #28a745; color: #28a745; padding: 15px; border-radius: 8px; margin-bottom: 1rem; }
-    h1 { color: #d4af37; margin-bottom: 2rem; }
-    .no-staff { text-align: center; padding: 2rem; color: #888; }
-    .staff-specialty { color: #888; font-size: 0.85rem; }
-    
-    @media (max-width: 768px) { .dashboard-container { flex-direction: column; } .sidebar { width: 100%; } }
+    .main-content {
+        padding: 2rem;
+        background: #0a0a0a;
+        min-height: 100vh;
+    }
+
+    .section-title {
+        color: #d4af37;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        border-left: 3px solid #d4af37;
+        padding-left: 1rem;
+    }
+
+    .staff-card {
+        background: #1a1a1a;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        transition: all 0.3s;
+    }
+    .staff-card:hover {
+        border-color: #d4af37;
+    }
+    .staff-card h3 {
+        color: #d4af37;
+        margin-bottom: 0.5rem;
+    }
+    .staff-card .staff-specialty {
+        color: #888;
+        font-size: 0.85rem;
+    }
+
+    .perm-checkbox {
+        margin-right: 15px;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
+    .perm-checkbox label {
+        margin-left: 5px;
+        cursor: pointer;
+        color: #ddd;
+        font-size: 0.9rem;
+    }
+    .perm-checkbox input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: #d4af37;
+        width: 16px;
+        height: 16px;
+    }
+
+    .btn-primary {
+        background: #d4af37;
+        color: #050505;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    .btn-primary:hover {
+        background: #f9e547;
+        transform: translateY(-2px);
+    }
+
+    .alert-success {
+        background: rgba(40, 167, 69, 0.2);
+        border: 1px solid #28a745;
+        color: #28a745;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .no-staff {
+        text-align: center;
+        padding: 2rem;
+        color: #888;
+        background: #1a1a1a;
+        border-radius: 15px;
+        border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    .no-staff p { margin: 0.3rem 0; }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 1.5rem;
+        color: #d4af37;
+        text-decoration: none;
+    }
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 768px) {
+        .main-content { padding: 1rem; }
+        .section-title { font-size: 1.1rem; }
+        .staff-card { padding: 1rem; }
+        .perm-checkbox {
+            display: block;
+            margin-right: 0;
+        }
+        .perm-checkbox label { font-size: 0.85rem; }
+        .btn-primary { width: 100%; text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+        .main-content { padding: 0.8rem; }
+        .section-title { font-size: 1rem; }
+        .staff-card h3 { font-size: 1.1rem; }
+        .perm-checkbox label { font-size: 0.8rem; }
+    }
 </style>
 
-<div class="dashboard-container">
-    <aside class="sidebar">
-        <ul class="sidebar-menu">
-            <li><a href="dashboard.php">📊 Dashboard</a></li>
-            <li><a href="appointments.php">📅 Appointments</a></li>
-            <li><a href="services.php">💇 Services</a></li>
-            <li><a href="staff.php">👥 Staff</a></li>
-            <li><a href="customers.php">👤 Customers</a></li>
-            <li><a href="payments.php">💰 Payments</a></li>
-            <li><a href="reports.php">📈 Reports</a></li>
-            <li><a href="permissions.php" class="active">🔐 Permissions</a></li>
-            <li><a href="profile.php">⚙️ My Profile</a></li>
-            <li><a href="../auth/logout.php">🚪 Logout</a></li>
-        </ul>
-    </aside>
-    
-    <main class="main-content">
-        <div class="permissions-container">
-            <h1>🔐 Staff Permission Manager</h1>
-            
-            <?php if(isset($success)): ?>
-                <div class="alert-success">✅ <?php echo $success; ?></div>
+<div class="main-content">
+
+    <h1 class="section-title">🔐 Staff Permission Manager</h1>
+
+    <?php if(isset($success)): ?>
+        <div class="alert-success">✅ <?php echo $success; ?></div>
+    <?php endif; ?>
+
+    <?php if(mysqli_num_rows($staff_list) > 0): ?>
+        <?php while($staff = mysqli_fetch_assoc($staff_list)): 
+            // Get current permissions for this staff
+            $current_perms = [];
+            $perm_result = mysqli_query($conn, "SELECT permission_id FROM staff_permissions WHERE staff_id = {$staff['id']} AND can_access = 1");
+            while($p = mysqli_fetch_assoc($perm_result)) {
+                $current_perms[] = $p['permission_id'];
+            }
+        ?>
+        <div class="staff-card">
+            <h3>👤 <?php echo htmlspecialchars($staff['full_name']); ?></h3>
+            <p class="staff-specialty">📧 <?php echo htmlspecialchars($staff['email']); ?></p>
+            <?php if(!empty($staff['specialization'])): ?>
+                <p class="staff-specialty">✂️ <?php echo htmlspecialchars($staff['specialization']); ?></p>
             <?php endif; ?>
             
-            <?php if(mysqli_num_rows($staff_list) > 0): ?>
-                <?php while($staff = mysqli_fetch_assoc($staff_list)): 
-                    // Get current permissions for this staff
-                    $current_perms = [];
-                    $perm_result = mysqli_query($conn, "SELECT permission_id FROM staff_permissions WHERE staff_id = {$staff['id']} AND can_access = 1");
-                    while($p = mysqli_fetch_assoc($perm_result)) {
-                        $current_perms[] = $p['permission_id'];
-                    }
+            <form method="POST">
+                <input type="hidden" name="staff_id" value="<?php echo $staff['id']; ?>">
+                <h4 style="margin: 1rem 0 0.5rem 0; color: #d4af37;">Permissions:</h4>
+                <?php 
+                mysqli_data_seek($all_permissions, 0);
+                while($perm = mysqli_fetch_assoc($all_permissions)): 
                 ?>
-                <div class="staff-card">
-                    <h3>👤 <?php echo htmlspecialchars($staff['full_name']); ?></h3>
-                    <p class="staff-specialty">📧 <?php echo htmlspecialchars($staff['email']); ?></p>
-                    <?php if(!empty($staff['specialization'])): ?>
-                        <p class="staff-specialty">✂️ <?php echo htmlspecialchars($staff['specialization']); ?></p>
-                    <?php endif; ?>
-                    
-                    <form method="POST">
-                        <input type="hidden" name="staff_id" value="<?php echo $staff['id']; ?>">
-                        <h4 style="margin: 1rem 0 0.5rem 0; color: #d4af37;">Permissions:</h4>
-                        <?php 
-                        mysqli_data_seek($all_permissions, 0);
-                        while($perm = mysqli_fetch_assoc($all_permissions)): 
-                        ?>
-                        <div class="perm-checkbox">
-                            <input type="checkbox" name="permissions[]" value="<?php echo $perm['id']; ?>" 
-                                id="perm_<?php echo $staff['id'] . '_' . $perm['id']; ?>"
-                                <?php echo in_array($perm['id'], $current_perms) ? 'checked' : ''; ?>>
-                            <label for="perm_<?php echo $staff['id'] . '_' . $perm['id']; ?>">
-                                <?php echo ucfirst(str_replace('_', ' ', $perm['permission_name'])); ?>
-                            </label>
-                        </div>
-                        <?php endwhile; ?>
-                        <div style="margin-top: 1rem;">
-                            <button type="submit" name="update_permissions" class="btn-primary">💾 Save Permissions</button>
-                        </div>
-                    </form>
+                <div class="perm-checkbox">
+                    <input type="checkbox" name="permissions[]" value="<?php echo $perm['id']; ?>" 
+                        id="perm_<?php echo $staff['id'] . '_' . $perm['id']; ?>"
+                        <?php echo in_array($perm['id'], $current_perms) ? 'checked' : ''; ?>>
+                    <label for="perm_<?php echo $staff['id'] . '_' . $perm['id']; ?>">
+                        <?php echo ucfirst(str_replace('_', ' ', $perm['permission_name'])); ?>
+                    </label>
                 </div>
                 <?php endwhile; ?>
-            <?php else: ?>
-                <div class="no-staff">
-                    <p>👥 No staff members found for your salon.</p>
-                    <p style="font-size: 0.85rem; margin-top: 0.5rem;">Add staff members first to manage their permissions.</p>
+                <div style="margin-top: 1rem;">
+                    <button type="submit" name="update_permissions" class="btn-primary">💾 Save Permissions</button>
                 </div>
-            <?php endif; ?>
+            </form>
         </div>
-    </main>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <div class="no-staff">
+            <p>👥 No staff members found for your salon.</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">Add staff members first to manage their permissions.</p>
+        </div>
+    <?php endif; ?>
+
+    <a href="dashboard.php" class="back-link">← Back to Dashboard</a>
+
 </div>
 
 <?php include '../includes/footer.php'; ?>

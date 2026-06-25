@@ -1,5 +1,5 @@
 <?php
-// staff/dashboard.php - RESPONSIVE REWRITE
+// staff/dashboard.php - REDESIGNED with personal stats, queue, today's schedule
 require_once '../config/database.php';
 
 if (!isLoggedIn() || !isStaff()) {
@@ -19,88 +19,84 @@ $today_query = "SELECT a.*, c.full_name as customer_name, c.phone as customer_ph
                 JOIN users c ON a.customer_id = c.id 
                 JOIN services s ON a.service_id = s.id 
                 WHERE a.staff_id = $staff_id AND a.appointment_date = '$today' 
-                ORDER BY a.appointment_time ASC";
+                ORDER BY a.appointment_time ASC LIMIT 5";
 $today_appointments = mysqli_query($conn, $today_query);
 
-// Get pending queue for this staff
+// Get pending queue for this staff (limit 5)
 $queue_query = "SELECT a.*, c.full_name as customer_name, s.service_name 
                 FROM appointments a 
                 JOIN users c ON a.customer_id = c.id 
                 JOIN services s ON a.service_id = s.id 
                 WHERE a.staff_id = $staff_id AND a.status = 'pending' 
-                ORDER BY a.appointment_time ASC, a.queue_position ASC";
+                ORDER BY a.appointment_time ASC, a.queue_position ASC LIMIT 5";
 $queue = mysqli_query($conn, $queue_query);
 
 // Get staff statistics
 $stats_query = "SELECT 
     COUNT(*) as total_appointments,
-    SUM(CASE WHEN status = 'served' THEN 1 ELSE 0 END) as completed_today
+    SUM(CASE WHEN status = 'served' THEN 1 ELSE 0 END) as completed_today,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_today
     FROM appointments 
     WHERE staff_id = $staff_id AND appointment_date = '$today'";
 $stats_result = mysqli_query($conn, $stats_query);
 $stats = mysqli_fetch_assoc($stats_result);
 
+// Get staff details (specialization, experience)
+$staff_details_query = "SELECT u.full_name, u.email, u.phone, sd.specialty, sd.experience_years 
+                        FROM users u 
+                        LEFT JOIN staff_details sd ON u.id = sd.user_id 
+                        WHERE u.id = $staff_id";
+$staff_details_result = mysqli_query($conn, $staff_details_query);
+$staff_details = mysqli_fetch_assoc($staff_details_result);
+
 include '../includes/header.php';
+include '../includes/sidebar.php';
 ?>
 
 <style>
-    .staff-container { display: flex; min-height: 100vh; }
-    
-    /* ========== SIDEBAR ========== */
-    .sidebar {
-        width: 280px;
-        background: #050505;
-        border-right: 1px solid #d4af37;
-        padding: 2rem 1rem;
-        flex-shrink: 0;
-        transition: all 0.3s ease;
-        position: sticky;
-        top: 70px;
-        height: calc(100vh - 70px);
-        overflow-y: auto;
+    .main-content {
+        padding: 2rem;
+        background: #0a0a0a;
+        min-height: 100vh;
     }
-    .sidebar-header { text-align: center; margin-bottom: 2rem; }
-    .sidebar-header h3 { color: #d4af37; }
-    .sidebar-menu { list-style: none; padding: 0; }
-    .sidebar-menu li { margin-bottom: 0.5rem; }
-    .sidebar-menu a {
+
+    /* Welcome Banner */
+    .welcome-banner {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a1f0a 100%);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        border-radius: 15px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 0.8rem;
-        padding: 12px 20px;
-        color: white;
-        text-decoration: none;
-        border-radius: 10px;
-        transition: all 0.3s;
-        font-size: 0.95rem;
+        flex-wrap: wrap;
     }
-    .sidebar-menu a:hover, .sidebar-menu a.active {
-        background: #d4af37;
-        color: #050505;
+    .welcome-banner h1 {
+        color: #d4af37;
+        font-size: 1.6rem;
+        font-family: 'Playfair Display', serif;
+        margin-bottom: 0.3rem;
     }
-    
-    .sidebar-toggle {
-        display: none;
-        background: #d4af37;
-        color: #050505;
-        border: none;
-        padding: 10px 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 1rem;
-        margin-bottom: 1rem;
-        width: 100%;
+    .welcome-banner p {
+        color: #aaa;
+        font-size: 0.9rem;
     }
-    .sidebar-toggle:hover { background: #f9e547; }
+    .welcome-banner .staff-badge {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        background: rgba(212, 175, 55, 0.2);
+        color: #d4af37;
+        border: 1px solid #d4af37;
+    }
 
-    /* ========== MAIN CONTENT ========== */
-    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; min-width: 0; }
-    .main-content h1 { color: #d4af37; margin-bottom: 0.5rem; }
-
-    /* ========== STATS GRID ========== */
+    /* Stats Grid */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 1.5rem;
         margin-bottom: 2rem;
     }
@@ -110,321 +106,278 @@ include '../includes/header.php';
         padding: 1.5rem;
         text-align: center;
         border-left: 4px solid #d4af37;
+        transition: all 0.3s;
     }
-    .stat-number { font-size: 2.5rem; font-weight: bold; color: #d4af37; }
-    .stat-label { color: #aaa; margin-top: 0.3rem; font-size: 0.9rem; }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(212, 175, 55, 0.1);
+    }
+    .stat-card .number {
+        font-size: 2.2rem;
+        font-weight: bold;
+        color: #d4af37;
+    }
+    .stat-card .label {
+        color: #aaa;
+        margin-top: 0.3rem;
+        font-size: 0.85rem;
+    }
 
-    /* ========== QUEUE ========== */
-    .queue-container {
-        background: #1a1a1a;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    .queue-item {
-        background: #2a2a2a;
-        border-radius: 10px;
-        padding: 1rem;
+    /* Section Title */
+    .section-title {
+        color: #d4af37;
+        font-size: 1.1rem;
+        font-weight: 600;
         margin-bottom: 1rem;
+        border-left: 3px solid #d4af37;
+        padding-left: 1rem;
+    }
+
+    /* Appointment Cards */
+    .appointment-card {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin-bottom: 0.6rem;
+        border: 1px solid rgba(212, 175, 55, 0.15);
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 1rem;
-        border: 1px solid rgba(212, 175, 55, 0.3);
+        transition: all 0.3s;
     }
-    .queue-number {
+    .appointment-card:hover {
+        border-color: #d4af37;
+        background: #252525;
+    }
+    .appointment-card .service {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .appointment-card .details {
+        color: #aaa;
+        font-size: 0.8rem;
+    }
+    .appointment-card .price {
+        color: #d4af37;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .appointment-card .status {
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 500;
+    }
+    .status-confirmed { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
+    .status-pending { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid #d4af37; }
+    .status-completed { background: rgba(23, 162, 184, 0.2); color: #17a2b8; border: 1px solid #17a2b8; }
+    .status-cancelled { background: rgba(220, 53, 69, 0.2); color: #dc3545; border: 1px solid #dc3545; }
+    .status-served { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
+
+    .btn-serve {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: all 0.3s;
+        text-decoration: none;
+    }
+    .btn-serve:hover {
+        background: #218838;
+        transform: scale(1.05);
+    }
+
+    .view-all {
+        color: #d4af37;
+        text-decoration: none;
+        font-size: 0.8rem;
+        float: right;
+    }
+    .view-all:hover {
+        text-decoration: underline;
+    }
+
+    /* Queue Item */
+    .queue-item {
+        background: #1a1a1a;
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+        margin-bottom: 0.6rem;
+        border-left: 3px solid #d4af37;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .queue-item .customer {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .queue-item .service {
+        color: #aaa;
+        font-size: 0.8rem;
+    }
+    .queue-item .position {
         background: #d4af37;
         color: #050505;
-        width: 40px;
-        height: 40px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        margin-right: 1rem;
+        font-size: 0.8rem;
     }
-    .btn-serve {
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 8px 20px;
-        border-radius: 25px;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-    .btn-serve:hover { background: #218838; }
 
-    /* ========== TABLES ========== */
-    .table-wrapper {
-        overflow-x: auto;
+    /* Staff Profile Card */
+    .profile-card {
         background: #1a1a1a;
         border-radius: 15px;
-        padding: 0;
-        margin-top: 1rem;
+        padding: 1.5rem;
         border: 1px solid rgba(212, 175, 55, 0.2);
+        margin-bottom: 2rem;
     }
-    table {
-        width: 100%;
-        border-collapse: collapse;
+    .profile-card h3 {
+        color: #d4af37;
+        margin-bottom: 0.5rem;
+    }
+    .profile-card .specialty {
+        color: #d4af37;
+        font-size: 1.1rem;
+    }
+    .profile-card .detail {
+        color: #aaa;
         font-size: 0.9rem;
-        min-width: 500px;
+        margin-top: 0.3rem;
     }
-    th, td {
-        padding: 12px;
-        text-align: left;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-    }
-    th { color: #d4af37; font-weight: 600; }
-    tr:hover { background: rgba(212, 175, 55, 0.05); }
-
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    .status-served { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
-    .status-pending { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid #d4af37; }
-    .status-cancelled { background: rgba(220, 53, 69, 0.2); color: #dc3545; border: 1px solid #dc3545; }
-
-    .btn-small {
-        padding: 5px 15px;
-        font-size: 0.75rem;
-        background: #28a745;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-    .btn-small:hover { background: #218838; }
-
-    h1, h2 { color: #d4af37; margin-bottom: 1rem; }
-    h2 { font-size: 1.3rem; margin-top: 1.5rem; }
 
     /* ============================================
-    RESPONSIVE BREAKPOINTS
+    RESPONSIVE
        ============================================ */
-
     @media (max-width: 1024px) {
-        .sidebar { width: 240px; padding: 1.5rem 0.8rem; }
-        .stats-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-        .stat-number { font-size: 2rem; }
+        .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
     }
 
     @media (max-width: 768px) {
-        .staff-container { flex-direction: column; }
-
-        .sidebar {
-            width: 100%;
-            position: relative;
-            top: 0;
-            height: auto;
-            border-right: none;
-            border-bottom: 1px solid #d4af37;
-            padding: 1rem;
-            display: none;
-        }
-        .sidebar.open { display: block; }
-        .sidebar-toggle { display: block; }
-
         .main-content { padding: 1rem; }
-        .main-content h1 { font-size: 1.5rem; }
-
-        .stats-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        .stat-card { padding: 1rem; }
-        .stat-number { font-size: 1.5rem; }
-
-        .queue-item { flex-direction: column; text-align: center; }
-        .queue-item > div { width: 100%; }
+        .welcome-banner { flex-direction: column; text-align: center; gap: 0.5rem; }
+        .welcome-banner h1 { font-size: 1.3rem; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .stat-card .number { font-size: 1.8rem; }
+        .appointment-card { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+        .queue-item { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+        .profile-card { text-align: center; }
     }
 
     @media (max-width: 480px) {
-        .stats-grid { grid-template-columns: 1fr; }
         .main-content { padding: 0.8rem; }
-        .main-content h1 { font-size: 1.2rem; }
-
-        table { font-size: 0.75rem; min-width: 400px; }
-        th, td { padding: 8px; }
-        .queue-item { padding: 0.8rem; }
-        .queue-number { width: 30px; height: 30px; font-size: 0.8rem; }
+        .welcome-banner h1 { font-size: 1.1rem; }
+        .stats-grid { grid-template-columns: 1fr; }
+        .stat-card .number { font-size: 1.6rem; }
     }
 </style>
 
-<div class="staff-container">
+<div class="main-content">
 
-    <!-- ========== SIDEBAR ========== -->
-    <aside class="sidebar" id="sidebar">
-        <button class="sidebar-toggle" id="sidebarToggle">✕ Close Menu</button>
-        <div class="sidebar-header">
-            <h3>👤 <?php echo htmlspecialchars($staff_name); ?></h3>
-            <p>Staff Member</p>
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div>
+            <h1>👋 Welcome back, <?php echo htmlspecialchars($staff_name); ?>!</h1>
+            <p>Here's your schedule for today</p>
         </div>
-        <ul class="sidebar-menu">
-            <li><a href="dashboard.php" class="active">📊 Dashboard</a></li>
-            <li><a href="appointments.php">📅 My Appointments</a></li>
-            <?php if(in_array('book_for_customers', $staff_permissions)): ?>
-                <li><a href="book_for_customer.php">📝 Book for Customer</a></li>
-            <?php endif; ?>
-            <?php if(in_array('manual_cash_payment', $staff_permissions)): ?>
-                <li><a href="manual_payment.php">💵 Manual Cash Payment</a></li>
-            <?php endif; ?>
-            <li><a href="products.php">🛍️ Sell Products</a></li>
-            <?php if(in_array('view_reports', $staff_permissions)): ?>
-                <li><a href="reports.php">📈 My Reports</a></li>
-            <?php endif; ?>
-            <li><a href="profile.php">⚙️ My Profile</a></li>
-            <li><a href="../auth/logout.php">🚪 Logout</a></li>
-        </ul>
-    </aside>
-
-    <!-- ========== MAIN CONTENT ========== -->
-    <main class="main-content">
-        <button class="sidebar-toggle" id="sidebarOpen" style="display:none; margin-bottom:1rem;">☰ Menu</button>
-
-        <h1>Welcome, <?php echo htmlspecialchars($staff_name); ?>! ✨</h1>
-
-        <!-- Stats -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $stats['total_appointments'] ?? 0; ?></div>
-                <div class="stat-label">Today's Appointments</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $stats['completed_today'] ?? 0; ?></div>
-                <div class="stat-label">Completed Today</div>
-            </div>
+        <div>
+            <span class="staff-badge">✂️ <?php echo htmlspecialchars($staff_details['specialty'] ?? 'Stylist'); ?></span>
         </div>
+    </div>
 
-        <!-- Queue -->
-        <?php if($queue && mysqli_num_rows($queue) > 0): ?>
-        <div class="queue-container">
-            <h2>🚀 Your Current Queue</h2>
-            <?php while($q = mysqli_fetch_assoc($queue)): ?>
-            <div class="queue-item">
-                <div>
-                    <span class="queue-number">#<?php echo $q['queue_position']; ?></span>
-                    <strong><?php echo htmlspecialchars($q['customer_name']); ?></strong><br>
-                    <small><?php echo htmlspecialchars($q['service_name']); ?></small><br>
-                    <small>⏰ Time: <?php echo date('g:i A', strtotime($q['appointment_time'])); ?></small>
-                </div>
-                <form method="POST" action="appointments.php">
+    <!-- Profile Card -->
+    <div class="profile-card">
+        <h3>👤 Your Profile</h3>
+        <div class="specialty">✂️ <?php echo htmlspecialchars($staff_details['specialty'] ?? 'Professional Stylist'); ?></div>
+        <div class="detail">📅 <?php echo $staff_details['experience_years'] ?? 0; ?>+ years experience</div>
+        <div class="detail">📧 <?php echo htmlspecialchars($staff_details['email']); ?></div>
+        <div class="detail">📞 <?php echo htmlspecialchars($staff_details['phone']); ?></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="number"><?php echo $stats['total_appointments'] ?? 0; ?></div>
+            <div class="label">📅 Today's Appointments</div>
+        </div>
+        <div class="stat-card">
+            <div class="number"><?php echo $stats['completed_today'] ?? 0; ?></div>
+            <div class="label">✅ Completed Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="number"><?php echo $stats['pending_today'] ?? 0; ?></div>
+            <div class="label">⏳ Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="number"><?php echo mysqli_num_rows($queue); ?></div>
+            <div class="label">🚀 In Queue</div>
+        </div>
+    </div>
+
+    <!-- Queue -->
+    <h3 class="section-title">🚀 Your Current Queue <a href="appointments.php" class="view-all">View All →</a></h3>
+    <?php if($queue && mysqli_num_rows($queue) > 0): ?>
+        <?php while($q = mysqli_fetch_assoc($queue)): ?>
+        <div class="queue-item">
+            <div>
+                <span class="position">#<?php echo $q['queue_position']; ?></span>
+                <span class="customer"><?php echo htmlspecialchars($q['customer_name']); ?></span>
+                <span class="service">· <?php echo htmlspecialchars($q['service_name']); ?></span>
+            </div>
+            <div>
+                <span style="color: #d4af37; font-size: 0.8rem;">⏰ <?php echo date('g:i A', strtotime($q['appointment_time'])); ?></span>
+                <form method="POST" action="appointments.php" style="display: inline; margin-left: 0.5rem;">
                     <input type="hidden" name="appointment_id" value="<?php echo $q['id']; ?>">
                     <input type="hidden" name="action" value="serve">
-                    <button type="submit" class="btn-serve" onclick="return confirm('Mark this customer as served?')">✓ Mark as Served</button>
+                    <button type="submit" class="btn-serve" onclick="return confirm('Mark this customer as served?')">✓ Serve</button>
                 </form>
             </div>
-            <?php endwhile; ?>
         </div>
-        <?php endif; ?>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <div style="color: #aaa; padding: 1rem; text-align: center; background: #1a1a1a; border-radius: 12px;">
+            ✨ No customers waiting in your queue. Great job!
+        </div>
+    <?php endif; ?>
 
-        <!-- Today's Schedule -->
-        <h2>📅 Today's Schedule - <?php echo date('l, F d, Y'); ?></h2>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>⏰ Time</th>
-                        <th>👤 Customer Name</th>
-                        <th>💇 Service</th>
-                        <th>📞 Phone</th>
-                        <th>💰 Price</th>
-                        <th>📌 Status</th>
-                        <th>⚡ Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if($today_appointments && mysqli_num_rows($today_appointments) > 0): ?>
-                        <?php while($apt = mysqli_fetch_assoc($today_appointments)): ?>
-                        <tr>
-                            <td><strong><?php echo date('g:i A', strtotime($apt['appointment_time'])); ?></strong></td>
-                            <td><?php echo htmlspecialchars($apt['customer_name']); ?></td>
-                            <td><?php echo htmlspecialchars($apt['service_name']); ?></td>
-                            <td><?php echo htmlspecialchars($apt['customer_phone']); ?></td>
-                            <td>KSh <?php echo number_format($apt['price'], 2); ?></td>
-                            <td>
-                                <span class="status-badge status-<?php echo $apt['status']; ?>">
-                                    <?php echo ucfirst($apt['status']); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if($apt['status'] != 'served' && $apt['status'] != 'cancelled'): ?>
-                                <form method="POST" action="appointments.php" style="display:inline;">
-                                    <input type="hidden" name="appointment_id" value="<?php echo $apt['id']; ?>">
-                                    <input type="hidden" name="action" value="serve">
-                                    <button type="submit" class="btn-small" onclick="return confirm('Mark this customer as served?')">✓ Mark Served</button>
-                                </form>
-                                <?php elseif($apt['status'] == 'served'): ?>
-                                    <span style="color:#28a745;">✅ Completed</span>
-                                <?php else: ?>
-                                    <span style="color:#dc3545;">❌ Cancelled</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="7" style="text-align:center; padding:40px;">
-                                🎉 No appointments scheduled for today. Enjoy your free time!
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+    <!-- Today's Schedule -->
+    <h3 class="section-title" style="margin-top: 1.5rem;">📅 Today's Schedule <a href="appointments.php" class="view-all">View All →</a></h3>
+    <?php if($today_appointments && mysqli_num_rows($today_appointments) > 0): ?>
+        <?php while($apt = mysqli_fetch_assoc($today_appointments)): ?>
+        <div class="appointment-card">
+            <div>
+                <span class="service">💇 <?php echo htmlspecialchars($apt['service_name']); ?></span>
+                <span class="details"><?php echo htmlspecialchars($apt['customer_name']); ?> · <?php echo date('g:i A', strtotime($apt['appointment_time'])); ?></span>
+            </div>
+            <div>
+                <span class="price">KSh <?php echo number_format($apt['price'], 2); ?></span>
+                <span class="status status-<?php echo $apt['status']; ?>"><?php echo ucfirst($apt['status']); ?></span>
+                <?php if($apt['status'] != 'served' && $apt['status'] != 'cancelled'): ?>
+                    <form method="POST" action="appointments.php" style="display: inline; margin-left: 0.5rem;">
+                        <input type="hidden" name="appointment_id" value="<?php echo $apt['id']; ?>">
+                        <input type="hidden" name="action" value="serve">
+                        <button type="submit" class="btn-serve" onclick="return confirm('Mark this customer as served?')">✓ Serve</button>
+                    </form>
+                <?php endif; ?>
+            </div>
         </div>
-    </main>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <div style="color: #aaa; padding: 1rem; text-align: center; background: #1a1a1a; border-radius: 12px;">
+            🎉 No appointments scheduled for today. Enjoy your free time!
+        </div>
+    <?php endif; ?>
+
 </div>
-
-<script>
-    // ============================================
-    // MOBILE SIDEBAR TOGGLE
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOpen = document.getElementById('sidebarOpen');
-        const sidebarToggle = document.getElementById('sidebarToggle');
-
-        function isMobile() { return window.innerWidth <= 768; }
-
-        function handleSidebar() {
-            if (isMobile()) {
-                sidebar.classList.remove('open');
-                sidebarOpen.style.display = 'block';
-                sidebarToggle.style.display = 'block';
-            } else {
-                sidebar.classList.add('open');
-                sidebarOpen.style.display = 'none';
-                sidebarToggle.style.display = 'none';
-            }
-        }
-
-        if (sidebarOpen) {
-            sidebarOpen.addEventListener('click', function() {
-                sidebar.classList.add('open');
-            });
-        }
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.remove('open');
-            });
-        }
-
-        document.addEventListener('click', function(event) {
-            if (isMobile() && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(event.target) && event.target !== sidebarOpen) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-
-        window.addEventListener('resize', handleSidebar);
-        handleSidebar();
-    });
-</script>
 
 <?php include '../includes/footer.php'; ?>

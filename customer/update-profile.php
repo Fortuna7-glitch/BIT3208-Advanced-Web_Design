@@ -1,10 +1,9 @@
 <?php
-// customer/update-profile.php - COMPLETE FILE
+// customer/update-profile.php - UPDATED with new hamburger sidebar layout
 require_once '../config/database.php';
 
 if (!isLoggedIn() || !isCustomer()) {
-    header("Location: ../auth/login.php");
-    exit();
+    redirect('../auth/login.php');
 }
 
 $user_id = $_SESSION['user_id'];
@@ -50,88 +49,178 @@ include '../includes/header.php';
 ?>
 
 <style>
-    .dashboard-container { display: flex; min-height: 100vh; }
-    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; }
-    .sidebar-menu { list-style: none; padding: 0; }
-    .sidebar-menu li { margin-bottom: 0.5rem; }
-    .sidebar-menu a { display: block; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s; }
-    .sidebar-menu a:hover, .sidebar-menu a.active { background: #d4af37; color: #050505; }
-    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; }
-    .form-group { margin-bottom: 1.5rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; color: #d4af37; font-weight: 500; }
-    .form-control { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; font-size: 1rem; }
-    .btn-primary { padding: 12px 30px; background: #d4af37; color: #050505; border: none; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-    .btn-primary:hover { background: #f9e547; transform: translateY(-2px); }
-    .alert { padding: 15px; border-radius: 8px; margin-bottom: 1rem; }
-    .alert-success { background: rgba(40, 167, 69, 0.2); border: 1px solid #28a745; color: #28a745; }
-    .alert-danger { background: rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #dc3545; }
-    hr { border-color: rgba(212, 175, 55, 0.3); margin: 2rem 0; }
-    h1, h3 { color: #d4af37; }
-    @media (max-width: 768px) { .dashboard-container { flex-direction: column; } .sidebar { width: 100%; } }
-    small { color: #d4af37; font-size: 0.8rem; }
+    .main-content {
+        padding: 2rem;
+        background: #0a0a0a;
+        min-height: 100vh;
+    }
+
+    .section-title {
+        color: #d4af37;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        border-left: 3px solid #d4af37;
+        padding-left: 1rem;
+    }
+
+    .profile-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: #1a1a1a;
+        border-radius: 20px;
+        padding: 2rem;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #d4af37;
+        font-weight: 500;
+    }
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        background: #2a2a2a;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 1rem;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #d4af37;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 12px;
+        background: #d4af37;
+        color: #050505;
+        border: none;
+        border-radius: 50px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .btn-primary:hover {
+        background: #f9e547;
+        transform: translateY(-2px);
+    }
+
+    .alert {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .alert-success {
+        background: rgba(40, 167, 69, 0.2);
+        border: 1px solid #28a745;
+        color: #28a745;
+    }
+    .alert-danger {
+        background: rgba(220, 53, 69, 0.2);
+        border: 1px solid #dc3545;
+        color: #dc3545;
+    }
+
+    hr {
+        border-color: rgba(212, 175, 55, 0.3);
+        margin: 2rem 0;
+    }
+
+    .sub-title {
+        color: #d4af37;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+
+    .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #d4af37;
+        text-decoration: none;
+    }
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    small {
+        color: #888;
+        font-size: 0.8rem;
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 768px) {
+        .main-content { padding: 1rem; }
+        .profile-container { padding: 1.5rem; }
+        .section-title { font-size: 1.1rem; }
+    }
+
+    @media (max-width: 480px) {
+        .main-content { padding: 0.8rem; }
+        .profile-container { padding: 1rem; }
+        .section-title { font-size: 1rem; }
+        .form-control { padding: 10px; font-size: 0.9rem; }
+        .btn-primary { padding: 10px; font-size: 0.9rem; }
+    }
 </style>
 
-<div class="dashboard-container">
-    <aside class="sidebar">
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <h3 style="color: #d4af37;">👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?></h3>
-            <p>Customer</p>
-        </div>
-        <ul class="sidebar-menu">
-            <li><a href="dashboard.php">📊 Dashboard</a></li>
-            <li><a href="book.php">✨ New Booking</a></li>
-            <li><a href="appointments.php">📅 My Appointments</a></li>
-            <li><a href="update-profile.php" class="active">⚙️ Update Profile</a></li>
-            <li><a href="../auth/logout.php">🚪 Logout</a></li>
-        </ul>
-    </aside>
-    
-    <main class="main-content">
-        <h1>Update Profile ⚙️</h1>
+<div class="main-content">
+
+    <h1 class="section-title">⚙️ Update Profile</h1>
+
+    <div class="profile-container">
+        <?php if($error): ?>
+            <div class="alert alert-danger">❌ <?php echo $error; ?></div>
+        <?php endif; ?>
+        <?php if($success): ?>
+            <div class="alert alert-success">✅ <?php echo $success; ?></div>
+        <?php endif; ?>
         
-        <div style="max-width: 600px;">
-            <?php if($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
-            <?php endif; ?>
-            <?php if($success): ?>
-                <div class="alert alert-success"><?php echo $success; ?></div>
-            <?php endif; ?>
+        <form method="POST">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" name="full_name" class="form-control" value="<?php echo htmlspecialchars($user['full_name']); ?>" required>
+            </div>
             
-            <form method="POST">
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" name="full_name" class="form-control" value="<?php echo htmlspecialchars($user['full_name']); ?>" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" class="form-control" value="<?php echo htmlspecialchars($user['email']); ?>" disabled>
-                    <small>Email cannot be changed</small>
-                </div>
-                
-                <div class="form-group">
-                    <label>Phone Number</label>
-                    <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($user['phone']); ?>" required>
-                </div>
-                
-                <hr>
-                
-                <h3>Change Password</h3>
-                
-                <div class="form-group">
-                    <label>Current Password</label>
-                    <input type="password" name="current_password" class="form-control">
-                </div>
-                
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" name="new_password" class="form-control">
-                </div>
-                
-                <button type="submit" class="btn-primary">Update Profile</button>
-            </form>
-        </div>
-    </main>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" class="form-control" value="<?php echo htmlspecialchars($user['email']); ?>" disabled>
+                <small>Email cannot be changed</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($user['phone']); ?>" required>
+            </div>
+            
+            <hr>
+            
+            <h3 class="sub-title">🔑 Change Password</h3>
+            
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" name="current_password" class="form-control">
+            </div>
+            
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" name="new_password" class="form-control">
+            </div>
+            
+            <button type="submit" class="btn-primary">💾 Update Profile</button>
+        </form>
+    </div>
+
 </div>
 
 <?php include '../includes/footer.php'; ?>

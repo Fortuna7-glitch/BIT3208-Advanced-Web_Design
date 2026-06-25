@@ -1,5 +1,5 @@
 <?php
-// customer/book.php - UPDATED with salon_id filtering
+// customer/book.php - UPDATED with new hamburger sidebar layout
 require_once '../config/database.php';
 
 if (!isLoggedIn() || !isCustomer()) {
@@ -122,12 +122,19 @@ include '../includes/header.php';
 ?>
 
 <style>
+    .main-content {
+        padding: 2rem;
+        background: #0a0a0a;
+        min-height: 100vh;
+    }
+
     .booking-container {
         max-width: 600px;
-        margin: 2rem auto;
+        margin: 0 auto;
         background: #1a1a1a;
         border-radius: 20px;
         padding: 2rem;
+        border: 1px solid rgba(212, 175, 55, 0.3);
     }
     .booking-container h2 {
         text-align: center;
@@ -188,9 +195,11 @@ include '../includes/header.php';
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s;
     }
     button[type="submit"]:hover {
         background: #f9e547;
+        transform: translateY(-2px);
     }
     .back-link {
         display: block;
@@ -202,72 +211,93 @@ include '../includes/header.php';
     .back-link:hover {
         text-decoration: underline;
     }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 768px) {
+        .main-content { padding: 1rem; }
+        .booking-container { padding: 1.5rem; }
+        .booking-container h2 { font-size: 1.3rem; }
+    }
+
+    @media (max-width: 480px) {
+        .main-content { padding: 0.8rem; }
+        .booking-container { padding: 1rem; }
+        .booking-container h2 { font-size: 1.1rem; }
+        .form-control, select { padding: 10px; font-size: 0.9rem; }
+        button[type="submit"] { padding: 10px; font-size: 0.9rem; }
+    }
 </style>
 
-<div class="booking-container">
-    <h2>✨ Book Your Appointment ✨</h2>
-    <div class="salon-name-badge">🏢 Booking at: <strong><?php echo htmlspecialchars($salon['salon_name']); ?></strong></div>
-    
-    <?php if($error): ?>
-        <div class="alert alert-danger"><?php echo $error; ?></div>
-    <?php endif; ?>
-    <?php if($success): ?>
-        <div class="alert alert-success"><?php echo $success; ?> Redirecting...</div>
-    <?php endif; ?>
-    
-    <?php if(!$success): ?>
-    <form method="POST">
-        <div class="form-group">
-            <label>Select Service</label>
-            <select name="service_id" class="form-control" required id="service_select">
-                <option value="">-- Choose a service --</option>
-                <?php while($service = mysqli_fetch_assoc($services)): ?>
-                <option value="<?php echo $service['id']; ?>" data-price="<?php echo $service['price']; ?>" <?php echo ($selected_service == $service['id']) ? 'selected' : ''; ?>>
-                    <?php echo htmlspecialchars($service['service_name']); ?> - KSh <?php echo number_format($service['price'], 2); ?> (<?php echo $service['duration_minutes']; ?> mins)
-                </option>
-                <?php endwhile; ?>
-            </select>
-        </div>
+<div class="main-content">
+
+    <div class="booking-container">
+        <h2>✨ Book Your Appointment ✨</h2>
+        <div class="salon-name-badge">🏢 Booking at: <strong><?php echo htmlspecialchars($salon['salon_name']); ?></strong></div>
         
-        <div class="form-group">
-            <label>Select Stylist (Optional)</label>
-            <select name="staff_id" class="form-control">
-                <option value="">-- Any stylist --</option>
-                <?php while($staff_member = mysqli_fetch_assoc($staff)): ?>
-                <option value="<?php echo $staff_member['id']; ?>">
-                    <?php echo htmlspecialchars($staff_member['full_name']); ?> <?php echo !empty($staff_member['specialty']) ? '(' . htmlspecialchars($staff_member['specialty']) . ')' : ''; ?>
-                </option>
-                <?php endwhile; ?>
-            </select>
-        </div>
+        <?php if($error): ?>
+            <div class="alert alert-danger">❌ <?php echo $error; ?></div>
+        <?php endif; ?>
+        <?php if($success): ?>
+            <div class="alert alert-success">✅ <?php echo $success; ?> Redirecting...</div>
+        <?php endif; ?>
         
-        <div class="form-group">
-            <label>Appointment Date</label>
-            <input type="date" name="appointment_date" class="form-control" required min="<?php echo date('Y-m-d'); ?>">
-        </div>
-        
-        <div class="form-group">
-            <label>Appointment Time</label>
-            <input type="time" name="appointment_time" class="form-control" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Payment Method</label>
-            <select name="payment_method" class="form-control" required>
-                <option value="cash">💵 Cash</option>
-                <option value="mpesa">📱 M-PESA</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label>Total Amount</label>
-            <div class="price" id="total_amount">KSh 0.00</div>
-        </div>
-        
-        <button type="submit">Confirm Booking</button>
-        <a href="../salon.php?id=<?php echo $salon_id; ?>" class="back-link">← Back to Salon</a>
-    </form>
-    <?php endif; ?>
+        <?php if(!$success): ?>
+        <form method="POST">
+            <div class="form-group">
+                <label>Select Service</label>
+                <select name="service_id" class="form-control" required id="service_select">
+                    <option value="">-- Choose a service --</option>
+                    <?php while($service = mysqli_fetch_assoc($services)): ?>
+                    <option value="<?php echo $service['id']; ?>" data-price="<?php echo $service['price']; ?>" <?php echo ($selected_service == $service['id']) ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($service['service_name']); ?> - KSh <?php echo number_format($service['price'], 2); ?> (<?php echo $service['duration_minutes']; ?> mins)
+                    </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Select Stylist (Optional)</label>
+                <select name="staff_id" class="form-control">
+                    <option value="">-- Any stylist --</option>
+                    <?php while($staff_member = mysqli_fetch_assoc($staff)): ?>
+                    <option value="<?php echo $staff_member['id']; ?>">
+                        <?php echo htmlspecialchars($staff_member['full_name']); ?> <?php echo !empty($staff_member['specialty']) ? '(' . htmlspecialchars($staff_member['specialty']) . ')' : ''; ?>
+                    </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Appointment Date</label>
+                <input type="date" name="appointment_date" class="form-control" required min="<?php echo date('Y-m-d'); ?>">
+            </div>
+            
+            <div class="form-group">
+                <label>Appointment Time</label>
+                <input type="time" name="appointment_time" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Payment Method</label>
+                <select name="payment_method" class="form-control" required>
+                    <option value="cash">💵 Cash</option>
+                    <option value="mpesa">📱 M-PESA</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Total Amount</label>
+                <div class="price" id="total_amount">KSh 0.00</div>
+            </div>
+            
+            <button type="submit">Confirm Booking</button>
+            <a href="../salon.php?id=<?php echo $salon_id; ?>" class="back-link">← Back to Salon</a>
+        </form>
+        <?php endif; ?>
+    </div>
+
 </div>
 
 <script>

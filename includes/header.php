@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - COMPLETE REWRITE with Mobile Responsiveness
+// includes/header.php - MODIFIED with Left-Aligned Hamburger, Right-Aligned User Badge
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -20,12 +20,14 @@ if (strpos($current_file, '/admin/') !== false ||
 $logged_in = false;
 $user_role = '';
 $user_name = '';
+$user_email = '';
 $is_super_admin = false;
 
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $logged_in = true;
     $user_role = $_SESSION['user_role'];
     $user_name = $_SESSION['user_name'];
+    $user_email = $_SESSION['user_email'] ?? '';
     $is_super_admin = ($user_role == 'super_admin');
 }
 ?>
@@ -40,31 +42,53 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
-           RESPONSIVE HEADER STYLES
+        RESET & BASE
            ============================================ */
-        
-        /* Reset & Base */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Poppins', sans-serif; background: #0a0a0a; color: #ffffff; line-height: 1.6; }
-        
+
         /* ============================================
-           DESKTOP NAVBAR (Default)
+        HEADER (DARK THEME - Like VLMS Layout)
            ============================================ */
-        .navbar {
+        .header {
             background: #050505;
-            padding: 1rem 5%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             border-bottom: 2px solid #d4af37;
+            padding: 0.8rem 2%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             position: sticky;
             top: 0;
             z-index: 1000;
-            flex-wrap: wrap;
-            min-height: 70px;
+            min-height: 65px;
         }
+
+        /* LEFT SECTION: Hamburger + Logo */
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+        }
+
+        /* Hamburger Button */
+        .hamburger-btn {
+            background: transparent;
+            border: none;
+            color: #d4af37;
+            font-size: 1.6rem;
+            cursor: pointer;
+            padding: 5px 8px;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        .hamburger-btn:hover {
+            color: #f9e547;
+        }
+
+        /* Logo */
         .logo {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: bold;
             color: white;
             display: flex;
@@ -72,189 +96,160 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
             gap: 0.3rem;
         }
         .logo span { color: #d4af37; font-family: 'Playfair Display', serif; }
-        .logo small { color: #d4af37; font-size: 0.8rem; }
-        
-        /* Desktop Navigation Links */
-        .nav-links {
+        .logo small { color: #d4af37; font-size: 0.7rem; }
+
+        /* RIGHT SECTION: User Badge + Icons */
+        .header-right {
             display: flex;
-            list-style: none;
-            gap: 2rem;
             align-items: center;
-            margin: 0;
-            padding: 0;
+            gap: 1.2rem;
         }
-        .nav-links li { display: inline-block; }
-        .nav-links a {
+
+        /* User Badge */
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: #ccc;
+            font-size: 0.85rem;
+            background: rgba(212, 175, 55, 0.1);
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .user-badge:hover {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: #d4af37;
+        }
+        .user-badge .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #d4af37;
+            color: #050505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        .user-badge .user-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .user-badge .user-name {
             color: white;
-            text-decoration: none;
             font-weight: 500;
-            transition: color 0.3s;
-            font-size: 0.95rem;
-            white-space: nowrap;
+            font-size: 0.85rem;
         }
-        .nav-links a:hover { color: #d4af37; }
-        
-        /* Mobile Hamburger Button */
-        .hamburger {
-            display: none;
+        .user-badge .user-role {
+            color: #d4af37;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Header Icons (Settings, Logout) */
+        .header-icon {
             background: transparent;
             border: none;
-            color: #d4af37;
-            font-size: 1.8rem;
+            color: #aaa;
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 5px 10px;
+            padding: 5px 8px;
+            transition: all 0.3s;
+            position: relative;
+            border-radius: 5px;
         }
-        .hamburger:hover { color: #f9e547; }
-        
+        .header-icon:hover {
+            color: #d4af37;
+            background: rgba(212, 175, 55, 0.1);
+        }
+
         /* ============================================
-           TABLET & MOBILE RESPONSIVE
+        MOBILE RESPONSIVE
            ============================================ */
-        
-        /* Tablet: Up to 1024px */
-        @media (max-width: 1024px) {
-            .nav-links { gap: 1.5rem; }
-            .nav-links a { font-size: 0.85rem; }
-        }
-        
-        /* Mobile: Up to 768px */
         @media (max-width: 768px) {
-            .navbar {
-                flex-wrap: wrap;
-                padding: 0.8rem 4%;
-                min-height: 60px;
+            .header {
+                padding: 0.6rem 3%;
+                min-height: 55px;
             }
-            .logo { font-size: 1.4rem; }
-            
-            /* Show hamburger button */
-            .hamburger { display: block; }
-            
-            /* Hide nav links by default on mobile */
-            .nav-links {
-                display: none;
-                flex-direction: column;
-                width: 100%;
-                gap: 0;
-                padding: 1rem 0;
-                border-top: 1px solid rgba(212, 175, 55, 0.3);
-                margin-top: 0.8rem;
-            }
-            
-            /* Show when active */
-            .nav-links.active {
-                display: flex;
-            }
-            
-            .nav-links li {
-                width: 100%;
-                text-align: center;
-                padding: 0.5rem 0;
-                border-bottom: 1px solid rgba(255,255,255,0.05);
-            }
-            .nav-links li:last-child { border-bottom: none; }
-            
-            .nav-links a {
-                font-size: 1rem;
-                padding: 8px 0;
-                display: block;
-                width: 100%;
-            }
-        }
-        
-        /* Small Mobile: Up to 480px */
-        @media (max-width: 480px) {
             .logo { font-size: 1.2rem; }
-            .navbar { padding: 0.6rem 3%; }
-            .hamburger { font-size: 1.5rem; }
-            .nav-links a { font-size: 0.9rem; }
+            .hamburger-btn { font-size: 1.4rem; }
+            .user-badge { padding: 0.3rem 0.8rem; }
+            .user-badge .user-info .user-name { font-size: 0.75rem; }
+            .user-badge .user-info .user-role { font-size: 0.55rem; }
+            .user-badge .avatar { width: 25px; height: 25px; font-size: 0.65rem; }
+            .header-icon { font-size: 1rem; }
+        }
+
+        @media (max-width: 480px) {
+            .header { padding: 0.5rem 2%; min-height: 48px; }
+            .logo { font-size: 1rem; }
+            .logo small { font-size: 0.55rem; }
+            .hamburger-btn { font-size: 1.2rem; padding: 3px 5px; }
+            .user-badge { padding: 0.2rem 0.6rem; gap: 0.4rem; }
+            .user-badge .user-info .user-name { font-size: 0.65rem; }
+            .user-badge .user-info .user-role { font-size: 0.5rem; }
+            .user-badge .avatar { width: 22px; height: 22px; font-size: 0.55rem; }
+            .header-icon { font-size: 0.85rem; padding: 3px 5px; }
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
+
+<!-- ============================================
+HEADER
+============================================ -->
+<header class="header" id="mainHeader">
+
+    <!-- LEFT: Hamburger + Logo -->
+    <div class="header-left">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation">
+            <i class="fas fa-bars"></i>
+        </button>
         <div class="logo">
             <span>SALON</span> PRO <small><?php echo $is_super_admin ? '👑' : '✨'; ?></small>
         </div>
-        
-        <!-- Hamburger Button (Mobile) -->
-        <button class="hamburger" id="hamburgerBtn" aria-label="Toggle Navigation">
-            <i class="fas fa-bars"></i>
-        </button>
-        
-        <!-- Navigation Links -->
-        <ul class="nav-links" id="navLinks">
-            
-            <?php if ($logged_in && $is_super_admin): ?>
-                <!-- SUPER ADMIN NAVIGATION -->
-                <li><a href="<?php echo $base_path; ?>super_admin/dashboard.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>super_admin/salons.php">🏢 Salons</a></li>
-                <li><a href="<?php echo $base_path; ?>super_admin/admins.php">👨‍💼 Owners</a></li>
-                <li><a href="<?php echo $base_path; ?>super_admin/subscriptions.php">💰 Subscriptions</a></li>
-                <li><a href="<?php echo $base_path; ?>super_admin/settings.php">⚙️ Settings</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-                
-            <?php elseif ($logged_in && $user_role == 'admin'): ?>
-                <!-- REGULAR ADMIN (SALON OWNER) -->
-                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
-                <li><a href="<?php echo $base_path; ?>admin/dashboard.php">👨‍💼 Admin Panel</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-                
-            <?php elseif ($logged_in && $user_role == 'staff'): ?>
-                <!-- STAFF NAVIGATION -->
-                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
-                <li><a href="<?php echo $base_path; ?>staff/dashboard.php">👩‍💼 Staff Panel</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-                
-            <?php elseif ($logged_in && $user_role == 'customer'): ?>
-                <!-- CUSTOMER NAVIGATION -->
-                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
-                <li><a href="<?php echo $base_path; ?>customer/dashboard.php">📊 My Dashboard</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/logout.php">🚪 Logout (<?php echo htmlspecialchars($user_name); ?>)</a></li>
-                
-            <?php else: ?>
-                <!-- PUBLIC NAVIGATION (NOT LOGGED IN) -->
-                <li><a href="<?php echo $base_path; ?>index.php">🏠 Home</a></li>
-                <li><a href="<?php echo $base_path; ?>find_salons.php">📍 Find a Salon</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/login.php">🔐 Login</a></li>
-                <li><a href="<?php echo $base_path; ?>auth/register.php">📝 Register</a></li>
-            <?php endif; ?>
-            
-        </ul>
-    </nav>
-    <main>
+    </div>
 
-    <script>
-        // ============================================
-        // MOBILE HAMBURGER TOGGLE
-        // ============================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const hamburger = document.getElementById('hamburgerBtn');
-            const navLinks = document.getElementById('navLinks');
-            
-            if (hamburger && navLinks) {
-                hamburger.addEventListener('click', function() {
-                    navLinks.classList.toggle('active');
-                    // Toggle icon between bars and times
-                    const icon = this.querySelector('i');
-                    if (icon) {
-                        icon.classList.toggle('fa-bars');
-                        icon.classList.toggle('fa-times');
-                    }
-                });
-                
-                // Close menu when a link is clicked (optional)
-                navLinks.querySelectorAll('a').forEach(function(link) {
-                    link.addEventListener('click', function() {
-                        navLinks.classList.remove('active');
-                        const icon = hamburger.querySelector('i');
-                        if (icon) {
-                            icon.classList.add('fa-bars');
-                            icon.classList.remove('fa-times');
-                        }
-                    });
-                });
-            }
-        });
-    </script>
+    <!-- RIGHT: User Badge + Icons -->
+    <div class="header-right">
+        <?php if ($logged_in): ?>
+            <!-- User Badge -->
+            <div class="user-badge" id="userBadge">
+                <div class="avatar"><?php echo strtoupper(substr($user_name, 0, 1)); ?></div>
+                <div class="user-info">
+                    <span class="user-name"><?php echo htmlspecialchars($user_name); ?></span>
+                    <span class="user-role"><?php echo ucfirst(str_replace('_', ' ', $user_role)); ?></span>
+                </div>
+            </div>
+
+            <!-- Settings Icon (Super Admin Only) -->
+            <?php if ($is_super_admin): ?>
+                <a href="<?php echo $base_path; ?>super_admin/settings.php" class="header-icon" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </a>
+            <?php endif; ?>
+
+            <!-- Logout Icon -->
+            <a href="<?php echo $base_path; ?>auth/logout.php" class="header-icon" title="Logout" onclick="return confirm('Are you sure you want to logout?')">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        <?php else: ?>
+            <!-- Public: Login/Register -->
+            <a href="<?php echo $base_path; ?>auth/login.php" class="header-icon" title="Login">
+                <i class="fas fa-sign-in-alt"></i>
+            </a>
+            <a href="<?php echo $base_path; ?>auth/register.php" class="header-icon" title="Register">
+                <i class="fas fa-user-plus"></i>
+            </a>
+        <?php endif; ?>
+    </div>
+
+</header>
+
+<main>

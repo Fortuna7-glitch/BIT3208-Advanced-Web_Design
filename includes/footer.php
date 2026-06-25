@@ -6,6 +6,9 @@
         <p>&copy; <?php echo date('Y'); ?> Salon Pro. Where Beauty Meets Excellence.</p>
         <p style="margin-top: 0.5rem; color: #d4af37; font-size: 0.85rem;">✨ Luxury Beauty at Your Fingertips ✨</p>
     </footer>
+
+    <!-- Include dashboard.js for ALL pages -->
+    <script src="<?php echo $base_path; ?>assets/js/dashboard.js"></script>
     
     <style>
         .footer {

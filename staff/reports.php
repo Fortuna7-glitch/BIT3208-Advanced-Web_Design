@@ -1,5 +1,5 @@
 <?php
-// staff/reports.php - Staff views reports (limited access)
+// staff/reports.php - UPDATED with new hamburger sidebar layout
 require_once '../config/database.php';
 
 if (!isLoggedIn() || !isStaff()) {
@@ -57,18 +57,50 @@ include '../includes/header.php';
 ?>
 
 <style>
-    .staff-container { display: flex; min-height: 100vh; }
-    .sidebar { width: 280px; background: #050505; border-right: 1px solid #d4af37; padding: 2rem 1rem; }
-    .sidebar-menu { list-style: none; padding: 0; }
-    .sidebar-menu li { margin-bottom: 0.5rem; }
-    .sidebar-menu a { display: block; padding: 12px 20px; color: white; text-decoration: none; border-radius: 10px; transition: all 0.3s; }
-    .sidebar-menu a:hover, .sidebar-menu a.active { background: #d4af37; color: #050505; }
-    .main-content { flex: 1; padding: 2rem; background: #0a0a0a; }
-    
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-    .stat-card { background: #1a1a1a; border-radius: 15px; padding: 1.5rem; text-align: center; border-left: 4px solid #d4af37; }
-    .stat-number { font-size: 2rem; font-weight: bold; color: #d4af37; }
-    
+    .main-content {
+        padding: 2rem;
+        background: #0a0a0a;
+        min-height: 100vh;
+    }
+
+    .section-title {
+        color: #d4af37;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        border-left: 3px solid #d4af37;
+        padding-left: 1rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: #1a1a1a;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        border-left: 4px solid #d4af37;
+        transition: all 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(212, 175, 55, 0.1);
+    }
+    .stat-card .number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #d4af37;
+    }
+    .stat-card .label {
+        color: #aaa;
+        margin-top: 0.3rem;
+        font-size: 0.85rem;
+    }
+
     .filter-bar {
         background: #1a1a1a;
         border-radius: 15px;
@@ -79,181 +111,192 @@ include '../includes/header.php';
         align-items: flex-end;
         flex-wrap: wrap;
     }
-    .filter-bar .form-group { margin-bottom: 0; }
-    .filter-bar .form-control { width: auto; min-width: 150px; }
-    
-    .table-wrapper {
-        overflow-x: auto;
-        background: #1a1a1a;
-        border-radius: 15px;
-        padding: 0;
-        margin-top: 1rem;
-        border: 1px solid rgba(212, 175, 55, 0.2);
+    .filter-bar .form-group {
+        margin-bottom: 0;
     }
-    .reports-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-    }
-    .reports-table th {
+    .filter-bar .form-control {
+        width: auto;
+        min-width: 140px;
+        padding: 10px;
         background: #2a2a2a;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        border-radius: 8px;
+        color: white;
+    }
+    .filter-bar label {
+        display: block;
         color: #d4af37;
-        padding: 14px 12px;
-        text-align: left;
-        font-weight: 600;
-        border-bottom: 2px solid #d4af37;
+        margin-bottom: 0.3rem;
+        font-size: 0.8rem;
     }
-    .reports-table td {
-        padding: 12px;
-        text-align: left;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-        color: #ffffff;
-    }
-    
+
     .btn-primary {
         background: #d4af37;
         color: #050505;
         border: none;
-        padding: 10px 25px;
+        padding: 10px 20px;
         border-radius: 25px;
         cursor: pointer;
         font-weight: 600;
+        transition: all 0.3s;
     }
-    .btn-primary:hover { background: #f9e547; }
-    
-    h1, h2 { color: #d4af37; margin-bottom: 1rem; }
-    h2 { font-size: 1.3rem; margin-top: 1.5rem; }
-    .form-group label { color: #d4af37; margin-bottom: 0.3rem; display: block; }
-    .form-control { padding: 8px 12px; background: #2a2a2a; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 8px; color: white; }
-    
-    @media (max-width: 768px) { 
-        .staff-container { flex-direction: column; } 
-        .sidebar { width: 100%; }
+    .btn-primary:hover {
+        background: #f9e547;
+        transform: translateY(-2px);
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        min-width: 400px;
+    }
+    th, td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+    }
+    th { color: #d4af37; font-weight: 600; }
+    tr:hover { background: rgba(212, 175, 55, 0.05); }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 1.5rem;
+        color: #d4af37;
+        text-decoration: none;
+    }
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 1024px) {
+        table { min-width: 350px; }
+    }
+
+    @media (max-width: 768px) {
+        .main-content { padding: 1rem; }
+        .section-title { font-size: 1.1rem; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .stat-card { padding: 1rem; }
+        .stat-card .number { font-size: 1.5rem; }
         .filter-bar { flex-direction: column; align-items: stretch; }
         .filter-bar .form-control { width: 100%; }
+        table { font-size: 0.75rem; min-width: 300px; }
+        th, td { padding: 6px; }
+    }
+
+    @media (max-width: 480px) {
+        .main-content { padding: 0.8rem; }
+        .section-title { font-size: 1rem; }
+        .stats-grid { grid-template-columns: 1fr; }
     }
 </style>
 
-<div class="staff-container">
-    <aside class="sidebar">
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <h3 style="color: #d4af37;">👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?></h3>
-            <p>Staff Member</p>
-        </div>
-        <ul class="sidebar-menu">
-            <li><a href="dashboard.php">📊 Dashboard</a></li>
-            <li><a href="appointments.php">📅 My Appointments</a></li>
-            <?php if(hasPermission($staff_id, 'book_for_customers')): ?>
-                <li><a href="book_for_customer.php">📝 Book for Customer</a></li>
-            <?php endif; ?>
-            <?php if(hasPermission($staff_id, 'manual_cash_payment')): ?>
-                <li><a href="manual_payment.php">💵 Manual Cash Payment</a></li>
-            <?php endif; ?>
-            <?php if(hasPermission($staff_id, 'view_reports')): ?>
-                <li><a href="reports.php" class="active">📈 My Reports</a></li>
-            <?php endif; ?>
-            <li><a href="profile.php">⚙️ My Profile</a></li>
-            <li><a href="../auth/logout.php">🚪 Logout</a></li>
-        </ul>
-    </aside>
-    
-    <main class="main-content">
-        <h1>📈 My Performance Reports</h1>
-        
-        <!-- Date Filter -->
-        <div class="filter-bar">
-            <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                <div class="form-group">
-                    <label>Start Date</label>
-                    <input type="date" name="start_date" class="form-control" value="<?php echo $start_date; ?>">
-                </div>
-                <div class="form-group">
-                    <label>End Date</label>
-                    <input type="date" name="end_date" class="form-control" value="<?php echo $end_date; ?>">
-                </div>
-                <button type="submit" class="btn-primary">📊 Generate Report</button>
-                <button type="button" onclick="window.print()" class="btn-primary" style="background: #2a2a2a;">🖨️ Print</button>
-            </form>
-        </div>
-        
-        <!-- Summary Stats -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $my_stats['total_appointments'] ?? 0; ?></div>
-                <p>Total Appointments</p>
+<div class="main-content">
+
+    <h1 class="section-title">📈 My Performance Reports</h1>
+
+    <!-- Date Filter -->
+    <div class="filter-bar">
+        <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="<?php echo $start_date; ?>">
             </div>
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $my_stats['completed_services'] ?? 0; ?></div>
-                <p>Completed Services</p>
+            <div class="form-group">
+                <label>End Date</label>
+                <input type="date" name="end_date" class="form-control" value="<?php echo $end_date; ?>">
             </div>
-            <div class="stat-card">
-                <div class="stat-number"><?php echo $my_stats['paid_appointments'] ?? 0; ?></div>
-                <p>Paid Appointments</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">KSh <?php echo number_format($revenue_data['total_revenue'] ?? 0, 2); ?></div>
-                <p>Revenue Generated</p>
-            </div>
+            <button type="submit" class="btn-primary">📊 Generate</button>
+            <button type="button" onclick="window.print()" class="btn-primary" style="background: #2a2a2a;">🖨️ Print</button>
+        </form>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="number"><?php echo $my_stats['total_appointments'] ?? 0; ?></div>
+            <div class="label">Total Appointments</div>
         </div>
-        
-        <!-- My Popular Services -->
-        <h2>⭐ My Most Booked Services</h2>
-        <div class="table-wrapper">
-            <table class="reports-table">
-                <thead>
-                    <tr><th>Service</th><th>Times Booked</th><th>Revenue Generated</th></tr>
-                </thead>
-                <tbody>
-                    <?php if($my_services && mysqli_num_rows($my_services) > 0): ?>
-                        <?php while($service = mysqli_fetch_assoc($my_services)): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($service['service_name']); ?></td>
-                            <td><?php echo $service['count']; ?> bookings</td>
-                            <td>KSh <?php echo number_format($service['revenue'], 2); ?></td>
-                        </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <td><td colspan="3" style="text-align: center; padding: 30px;">No service data available for this period</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+        <div class="stat-card">
+            <div class="number"><?php echo $my_stats['completed_services'] ?? 0; ?></div>
+            <div class="label">Completed Services</div>
         </div>
-        
-        <!-- Daily Activity -->
-        <h2>📅 Daily Activity</h2>
-        <div class="table-wrapper">
-            <table class="reports-table">
-                <thead>
-                    <tr><th>Date</th><th>Total Appointments</th><th>Completed</th><th>Completion Rate</th></tr>
-                </thead>
-                <tbody>
-                    <?php if($daily_stats && mysqli_num_rows($daily_stats) > 0): ?>
-                        <?php while($day = mysqli_fetch_assoc($daily_stats)): 
-                            $rate = $day['count'] > 0 ? round(($day['completed'] / $day['count']) * 100) : 0;
-                        ?>
-                        <tr>
-                            <td><?php echo date('M d, Y', strtotime($day['date'])); ?></td>
-                            <td><?php echo $day['count']; ?> bookings</td>
-                            <td><?php echo $day['completed']; ?> completed</td>
-                            <td>
-                                <span style="color: <?php echo $rate >= 80 ? '#28a745' : ($rate >= 50 ? '#d4af37' : '#dc3545'); ?>">
-                                    <?php echo $rate; ?>%
-                                </span>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr><td colspan="4" style="text-align: center; padding: 30px;">No daily data available for this period</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+        <div class="stat-card">
+            <div class="number"><?php echo $my_stats['paid_appointments'] ?? 0; ?></div>
+            <div class="label">Paid Appointments</div>
         </div>
-        
-        <!-- Completion Rate Note -->
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #1a1a1a; border-radius: 10px; text-align: center;">
-            <p>✨ Great job! Keep up the excellent service! ✨</p>
+        <div class="stat-card">
+            <div class="number">KSh <?php echo number_format($revenue_data['total_revenue'] ?? 0, 2); ?></div>
+            <div class="label">Revenue Generated</div>
         </div>
-    </main>
+    </div>
+
+    <!-- My Popular Services -->
+    <h2 class="section-title" style="font-size: 1.1rem; margin-top: 1.5rem;">⭐ My Most Booked Services</h2>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Service</th><th>Times Booked</th><th>Revenue Generated</th></tr>
+            </thead>
+            <tbody>
+                <?php if($my_services && mysqli_num_rows($my_services) > 0): ?>
+                    <?php while($service = mysqli_fetch_assoc($my_services)): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($service['service_name']); ?></td>
+                        <td><?php echo $service['count']; ?> bookings</td>
+                        <td>KSh <?php echo number_format($service['revenue'], 2); ?></td>
+                    </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 30px;">No service data available for this period</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Daily Activity -->
+    <h2 class="section-title" style="font-size: 1.1rem; margin-top: 1.5rem;">📅 Daily Activity</h2>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Total Appointments</th><th>Completed</th><th>Completion Rate</th></tr>
+            </thead>
+            <tbody>
+                <?php if($daily_stats && mysqli_num_rows($daily_stats) > 0): ?>
+                    <?php while($day = mysqli_fetch_assoc($daily_stats)): 
+                        $rate = $day['count'] > 0 ? round(($day['completed'] / $day['count']) * 100) : 0;
+                    ?>
+                    <tr>
+                        <td><?php echo date('M d, Y', strtotime($day['date'])); ?></td>
+                        <td><?php echo $day['count']; ?> bookings</td>
+                        <td><?php echo $day['completed']; ?> completed</td>
+                        <td>
+                            <span style="color: <?php echo $rate >= 80 ? '#28a745' : ($rate >= 50 ? '#d4af37' : '#dc3545'); ?>">
+                                <?php echo $rate; ?>%
+                            </span>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 30px;">No daily data available for this period</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <a href="dashboard.php" class="back-link">← Back to Dashboard</a>
+
 </div>
 
 <?php include '../includes/footer.php'; ?>
