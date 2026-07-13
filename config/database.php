@@ -1,59 +1,38 @@
 <?php
-// config/database.php - COMPLETE FILE with permission checking functions
+// config/database.php - COMPLETE FILE WITH SUBSCRIPTION HELPER FUNCTIONS
 
+// ============================================
+// DATABASE CONNECTION
+// ============================================
 $db_host = 'localhost';
 $db_user = 'root';
 $db_pass = '';
 $db_name = 'saloon_management_system';
 $db_port = 3306;
 
-// Try to connect
-$conn = null;
-$connection_error = '';
+$conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name, $db_port);
 
-try {
-    @$conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name, $db_port);
-    
-    if (!$conn) {
-        @$conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
-        
-        if (!$conn) {
-            $connection_error = mysqli_connect_error();
-            throw new Exception("MySQL Connection Failed: " . $connection_error);
-        }
-    }
-    
-    mysqli_set_charset($conn, "utf8mb4");
-    
-} catch (Exception $e) {
-    die("
-    <div style='font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; background: #1a1a1a; border-left: 4px solid #d4af37; color: white;'>
-        <h2 style='color: #d4af37;'>⚠️ Database Connection Error</h2>
-        <p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
-        <hr style='border-color: #333;'>
-        <h3>Solutions:</h3>
-        <ol>
-            <li><strong>Start MySQL in XAMPP:</strong> Open XAMPP Control Panel → Click 'Start' next to MySQL</li>
-            <li><strong>Check if MySQL is running:</strong> Look for green 'Running' label next to MySQL</li>
-            <li><strong>Restart XAMPP:</strong> Stop both Apache and MySQL, then start them again</li>
-        </ol>
-        <p><a href='javascript:location.reload()' style='color: #d4af37;'>↻ Try Again</a></p>
-    </div>
-    ");
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
 }
 
-// Set timezone
+mysqli_set_charset($conn, "utf8mb4");
+
+// ============================================
+// TIMEZONE
+// ============================================
 date_default_timezone_set('Africa/Nairobi');
 
-// Start session safely
+// ============================================
+// SESSION MANAGEMENT
+// ============================================
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 // ============================================
-// USER ROLE CHECKING FUNCTIONS
+// ROLE CHECKING FUNCTIONS
 // ============================================
-
 function isLoggedIn() {
     return isset($_SESSION['user_id']) && isset($_SESSION['user_role']);
 }
@@ -80,33 +59,40 @@ function redirect($url) {
 }
 
 // ============================================
-// PERMISSION CHECKING FUNCTIONS
+// SUBSCRIPTION HELPER FUNCTIONS (NEW)
 // ============================================
 
 /**
- * Check if a staff member has a specific permission
- * @param int $staff_id - The staff user ID
- * @param string $permission_name - The permission name (e.g., 'book_for_customers')
- * @return bool - True if has permission, false otherwise
+ * Check if a salon's subscription is active
+ * @param int $salon_id - The salon ID
+ * @return bool - True if active, false if expired
  */
-function hasPermission($staff_id, $permission_name) {
+function isSubscriptionActive($salon_id) {
     global $conn;
     
-    // Admin always has all permissions
-    if (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'admin') {
-        return true;
+    if ($salon_id <= 0) {
+        return false;
     }
     
-    $query = "SELECT sp.can_access 
-            FROM staff_permissions sp
-            JOIN permissions p ON sp.permission_id = p.id
-            WHERE sp.staff_id = $staff_id 
-            AND p.permission_name = '$permission_name'
-            AND sp.can_access = 1";
-    
+    $query = "SELECT subscription_expiry, subscription_status 
+              FROM salons 
+              WHERE id = $salon_id";
     $result = mysqli_query($conn, $query);
     
-    if ($result && mysqli_num_rows($result) > 0) {
+    if ($result && $row = mysqli_fetch_assoc($result)) {
+        $expiry_date = $row['subscription_expiry'];
+        $status = $row['subscription_status'];
+        
+        // If status is explicitly expired or suspended
+        if ($status == 'expired' || $status == 'suspended') {
+            return false;
+        }
+        
+        // If expiry date is set and is in the past
+        if (!empty($expiry_date) && $expiry_date < date('Y-m-d')) {
+            return false;
+        }
+        
         return true;
     }
     
@@ -114,101 +100,145 @@ function hasPermission($staff_id, $permission_name) {
 }
 
 /**
- * Get all permissions for a staff member
- * @param int $staff_id - The staff user ID
- * @return array - List of permission names
+ * Get subscription status details for a salon
+ * @param int $salon_id - The salon ID
+ * @return array - Status details including expiry date, status, days remaining
  */
-function getStaffPermissions($staff_id) {
+function getSubscriptionStatus($salon_id) {
     global $conn;
     
-    $permissions = [];
+    $result = [
+        'status' => 'unknown',
+        'expiry_date' => null,
+        'days_remaining' => null,
+        'is_active' => false,
+        'message' => ''
+    ];
     
-    // Admin has all permissions
-    if (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 'admin') {
-        // Return all possible permissions for admin
-        $all_perms = mysqli_query($conn, "SELECT permission_name FROM permissions");
-        while ($row = mysqli_fetch_assoc($all_perms)) {
-            $permissions[] = $row['permission_name'];
-        }
-        return $permissions;
+    if ($salon_id <= 0) {
+        $result['message'] = 'Invalid salon ID';
+        return $result;
     }
     
-    $query = "SELECT p.permission_name 
-            FROM staff_permissions sp
-            JOIN permissions p ON sp.permission_id = p.id
-            WHERE sp.staff_id = $staff_id AND sp.can_access = 1";
+    $query = "SELECT subscription_expiry, subscription_status 
+              FROM salons 
+              WHERE id = $salon_id";
+    $query_result = mysqli_query($conn, $query);
     
-    $result = mysqli_query($conn, $query);
-    
-    while ($row = mysqli_fetch_assoc($result)) {
-        $permissions[] = $row['permission_name'];
-    }
-    
-    return $permissions;
-}
-
-/**
- * Grant a permission to a staff member
- * @param int $staff_id - The staff user ID
- * @param string $permission_name - The permission name
- * @param int $granted_by - Admin user ID who grants this
- * @return bool - Success or failure
- */
-function grantPermission($staff_id, $permission_name, $granted_by) {
-    global $conn;
-    
-    // Get permission ID
-    $perm_query = "SELECT id FROM permissions WHERE permission_name = '$permission_name'";
-    $perm_result = mysqli_query($conn, $perm_query);
-    
-    if ($perm_result && $perm = mysqli_fetch_assoc($perm_result)) {
-        $permission_id = $perm['id'];
+    if ($query_result && $row = mysqli_fetch_assoc($query_result)) {
+        $expiry_date = $row['subscription_expiry'];
+        $status = $row['subscription_status'];
         
-        // Check if already exists
-        $check = mysqli_query($conn, "SELECT id FROM staff_permissions WHERE staff_id = $staff_id AND permission_id = $permission_id");
+        $result['status'] = $status;
+        $result['expiry_date'] = $expiry_date;
         
-        if (mysqli_num_rows($check) > 0) {
-            // Update existing
-            $query = "UPDATE staff_permissions SET can_access = 1, granted_by = $granted_by WHERE staff_id = $staff_id AND permission_id = $permission_id";
+        if (!empty($expiry_date)) {
+            $today = new DateTime();
+            $expiry = new DateTime($expiry_date);
+            $diff = $today->diff($expiry);
+            $days = $diff->days;
+            
+            if ($expiry < $today) {
+                $result['days_remaining'] = -$days;
+                $result['is_active'] = false;
+                $result['message'] = 'Subscription expired ' . $days . ' days ago';
+            } else {
+                $result['days_remaining'] = $days;
+                $result['is_active'] = ($status != 'expired' && $status != 'suspended');
+                $result['message'] = $days . ' days remaining';
+            }
         } else {
-            // Insert new
-            $query = "INSERT INTO staff_permissions (staff_id, permission_id, can_access, granted_by) VALUES ($staff_id, $permission_id, 1, $granted_by)";
+            $result['message'] = 'No expiry date set';
+            $result['is_active'] = ($status != 'expired' && $status != 'suspended');
         }
         
-        return mysqli_query($conn, $query);
+        // Override if status is explicitly expired/suspended
+        if ($status == 'expired' || $status == 'suspended') {
+            $result['is_active'] = false;
+            $result['message'] = 'Account ' . $status;
+        }
+    } else {
+        $result['message'] = 'Salon not found';
     }
     
-    return false;
+    return $result;
 }
 
 /**
- * Revoke a permission from a staff member
- * @param int $staff_id - The staff user ID
- * @param string $permission_name - The permission name
+ * Deactivate a salon owner (admin) and optionally their staff
+ * @param int $salon_id - The salon ID
+ * @param bool $deactivate_staff - Whether to also deactivate staff
  * @return bool - Success or failure
  */
-function revokePermission($staff_id, $permission_name) {
+function deactivateSalon($salon_id, $deactivate_staff = true) {
     global $conn;
     
-    $perm_query = "SELECT id FROM permissions WHERE permission_name = '$permission_name'";
-    $perm_result = mysqli_query($conn, $perm_query);
-    
-    if ($perm_result && $perm = mysqli_fetch_assoc($perm_result)) {
-        $permission_id = $perm['id'];
-        $query = "DELETE FROM staff_permissions WHERE staff_id = $staff_id AND permission_id = $permission_id";
-        return mysqli_query($conn, $query);
+    if ($salon_id <= 0) {
+        return false;
     }
     
-    return false;
+    // Deactivate the salon owner (admin)
+    $admin_query = "UPDATE users SET is_active = 0 
+                    WHERE salon_id = $salon_id AND role = 'admin'";
+    $admin_result = mysqli_query($conn, $admin_query);
+    
+    // Optionally deactivate staff
+    if ($deactivate_staff) {
+        $staff_query = "UPDATE users SET is_active = 0 
+                        WHERE salon_id = $salon_id AND role = 'staff'";
+        mysqli_query($conn, $staff_query);
+    }
+    
+    // Update salon status
+    $salon_query = "UPDATE salons SET subscription_status = 'expired' 
+                    WHERE id = $salon_id";
+    mysqli_query($conn, $salon_query);
+    
+    return true;
+}
+
+/**
+ * Reactivate a salon owner (admin) and their staff
+ * @param int $salon_id - The salon ID
+ * @param string $new_expiry - New expiry date (YYYY-MM-DD)
+ * @param string $plan - Subscription plan (basic, premium, enterprise)
+ * @return bool - Success or failure
+ */
+function reactivateSalon($salon_id, $new_expiry, $plan = 'basic') {
+    global $conn;
+    
+    if ($salon_id <= 0 || empty($new_expiry)) {
+        return false;
+    }
+    
+    // Reactivate salon owner
+    $admin_query = "UPDATE users SET is_active = 1 
+                    WHERE salon_id = $salon_id AND role = 'admin'";
+    mysqli_query($conn, $admin_query);
+    
+    // Reactivate staff
+    $staff_query = "UPDATE users SET is_active = 1 
+                    WHERE salon_id = $salon_id AND role = 'staff'";
+    mysqli_query($conn, $staff_query);
+    
+    // Update salon status and expiry
+    $salon_query = "UPDATE salons SET 
+                    subscription_status = 'active',
+                    subscription_expiry = '$new_expiry',
+                    subscription_plan = '$plan'
+                    WHERE id = $salon_id";
+    mysqli_query($conn, $salon_query);
+    
+    return true;
 }
 
 // ============================================
 // NOTIFICATION FUNCTIONS
 // ============================================
-
 function sendNotification($user_id, $title, $message, $type = 'email') {
     global $conn;
-    $query = "INSERT INTO notifications (user_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, NOW())";
+    $query = "INSERT INTO notifications (user_id, title, message, type, is_read) 
+              VALUES (?, ?, ?, ?, 0)";
     $stmt = mysqli_prepare($conn, $query);
     if ($stmt) {
         mysqli_stmt_bind_param($stmt, "isss", $user_id, $title, $message, $type);
@@ -218,14 +248,12 @@ function sendNotification($user_id, $title, $message, $type = 'email') {
 }
 
 function sendSMS($phone, $message) {
-    // Log SMS for testing
     $log = date('Y-m-d H:i:s') . " - SMS to: $phone - Message: $message\n";
     file_put_contents(__DIR__ . '/../sms_log.txt', $log, FILE_APPEND);
     return true;
 }
 
 function sendEmail($to, $subject, $body) {
-    // Log email for testing
     $log = date('Y-m-d H:i:s') . " - Email to: $to - Subject: $subject\n";
     file_put_contents(__DIR__ . '/../email_log.txt', $log, FILE_APPEND);
     
@@ -238,91 +266,37 @@ function sendEmail($to, $subject, $body) {
 // ============================================
 // PLAN FEATURE ACCESS FUNCTIONS
 // ============================================
-
-/**
- * Get all features available for a specific plan
- * @param string $plan - 'basic', 'premium', or 'enterprise'
- * @return array - List of features available for the plan
- */
 function getPlanFeatures($plan) {
     $features = [
-        'basic' => [
-            'appointments',
-            'customers',
-            'staff',
-            'services',
-            'payments'
-        ],
-        'premium' => [
-            'appointments',
-            'customers',
-            'staff',
-            'services',
-            'payments',
-            'reports',
-            'permissions'
-        ],
-        'enterprise' => [
-            'appointments',
-            'customers',
-            'staff',
-            'services',
-            'payments',
-            'reports',
-            'permissions',
-            'multi_branch',
-            'advanced_analytics',
-            'priority_support'
-        ]
+        'basic' => ['appointments', 'customers', 'staff', 'services', 'payments'],
+        'premium' => ['appointments', 'customers', 'staff', 'services', 'payments', 'reports', 'permissions'],
+        'enterprise' => ['appointments', 'customers', 'staff', 'services', 'payments', 'reports', 'permissions', 'multi_branch', 'advanced_analytics', 'priority_support']
     ];
-    
     return isset($features[$plan]) ? $features[$plan] : $features['basic'];
 }
 
-/**
- * Check if a specific feature is available for a salon's plan
- * @param int $salon_id - The salon ID
- * @param string $feature - The feature to check (e.g., 'reports')
- * @return bool - True if feature is available
- */
 function hasFeature($salon_id, $feature) {
     global $conn;
-    
     $query = "SELECT subscription_plan FROM salons WHERE id = $salon_id";
     $result = mysqli_query($conn, $query);
-    
     if ($result && $row = mysqli_fetch_assoc($result)) {
         $plan = $row['subscription_plan'];
         $features = getPlanFeatures($plan);
         return in_array($feature, $features);
     }
-    
     return false;
 }
 
-/**
- * Get the current plan for a salon
- * @param int $salon_id - The salon ID
- * @return string - 'basic', 'premium', or 'enterprise'
- */
 function getSalonPlan($salon_id) {
     global $conn;
-    
     $query = "SELECT subscription_plan FROM salons WHERE id = $salon_id";
     $result = mysqli_query($conn, $query);
-    
     if ($result && $row = mysqli_fetch_assoc($result)) {
         return $row['subscription_plan'];
     }
-    
     return 'basic';
 }
 
-/**
- * Get upgrade message for a salon owner based on their current plan
- * @param string $current_plan - 'basic', 'premium', or 'enterprise'
- * @return array|null - Upgrade info or null if on highest plan
- */
 function getUpgradeMessage($current_plan) {
     switch($current_plan) {
         case 'basic':
@@ -339,17 +313,11 @@ function getUpgradeMessage($current_plan) {
                 'target' => 'enterprise',
                 'features' => ['Multi-Branch Support', 'Advanced Analytics', 'Priority Support']
             ];
-        case 'enterprise':
-            return null; // Already on highest plan
         default:
             return null;
     }
 }
 
-/**
- * Get plan pricing (can be moved to settings later)
- * @return array - Plan pricing in KSh
- */
 function getPlanPricing() {
     return [
         'basic' => 0,
@@ -358,18 +326,8 @@ function getPlanPricing() {
     ];
 }
 
-/**
- * Get plan label (human-readable)
- * @param string $plan - 'basic', 'premium', or 'enterprise'
- * @return string - Human-readable plan name
- */
 function getPlanLabel($plan) {
-    $labels = [
-        'basic' => 'Basic',
-        'premium' => 'Premium',
-        'enterprise' => 'Enterprise'
-    ];
+    $labels = ['basic' => 'Basic', 'premium' => 'Premium', 'enterprise' => 'Enterprise'];
     return isset($labels[$plan]) ? $labels[$plan] : ucfirst($plan);
 }
-
 ?>

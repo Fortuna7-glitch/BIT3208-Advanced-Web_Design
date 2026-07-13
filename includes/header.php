@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - MODIFIED with Left-Aligned Hamburger, Right-Aligned User Badge
+// includes/header.php - COMPLETE: Fixed logo path, no duplicate headers, working logout
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -30,30 +30,37 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $user_email = $_SESSION['user_email'] ?? '';
     $is_super_admin = ($user_role == 'super_admin');
 }
+
+// Logo file path
+$logo_path = $base_path . 'assets/images/logo.png';
+$logo_exists = file_exists($logo_path);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="<?php echo $base_path; ?>manifest.json">
+    <link rel="apple-touch-icon" href="<?php echo $base_path; ?>assets/images/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0a">
     <title>Salon Pro - Luxury Beauty Salon</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================
-        RESET & BASE
+           HEADER STYLES
            ============================================ */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Poppins', sans-serif; background: #0a0a0a; color: #ffffff; line-height: 1.6; }
 
-        /* ============================================
-        HEADER (DARK THEME - Like VLMS Layout)
-           ============================================ */
         .header {
             background: #050505;
             border-bottom: 2px solid #d4af37;
-            padding: 0.8rem 2%;
+            padding: 0.6rem 2%;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -63,49 +70,50 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
             min-height: 65px;
         }
 
-        /* LEFT SECTION: Hamburger + Logo */
+        /* LEFT SECTION: Logo */
         .header-left {
             display: flex;
             align-items: center;
-            gap: 1.2rem;
+            gap: 0.8rem;
         }
 
-        /* Hamburger Button */
-        .hamburger-btn {
-            background: transparent;
-            border: none;
-            color: #d4af37;
-            font-size: 1.6rem;
-            cursor: pointer;
-            padding: 5px 8px;
-            transition: color 0.3s;
+        /* Logo Image + Text */
+        .header-logo {
             display: flex;
             align-items: center;
+            gap: 0.8rem;
+            text-decoration: none;
         }
-        .hamburger-btn:hover {
-            color: #f9e547;
+        .header-logo img {
+            max-height: 40px;
+            width: auto;
+            display: block;
         }
-
-        /* Logo */
-        .logo {
-            font-size: 1.6rem;
+        .header-logo .logo-text {
+            font-size: 1.4rem;
             font-weight: bold;
             color: white;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
+            font-family: 'Playfair Display', serif;
         }
-        .logo span { color: #d4af37; font-family: 'Playfair Display', serif; }
-        .logo small { color: #d4af37; font-size: 0.7rem; }
+        .header-logo .logo-text span {
+            color: #d4af37;
+        }
+        .header-logo .logo-tagline {
+            font-size: 0.55rem;
+            color: #d4af37;
+            font-weight: 300;
+            letter-spacing: 1px;
+            display: block;
+            margin-top: -0.1rem;
+        }
 
         /* RIGHT SECTION: User Badge + Icons */
         .header-right {
             display: flex;
             align-items: center;
-            gap: 1.2rem;
+            gap: 1rem;
         }
 
-        /* User Badge */
         .user-badge {
             display: flex;
             align-items: center;
@@ -113,7 +121,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
             color: #ccc;
             font-size: 0.85rem;
             background: rgba(212, 175, 55, 0.1);
-            padding: 0.4rem 1rem;
+            padding: 0.3rem 0.8rem 0.3rem 0.3rem;
             border-radius: 50px;
             border: 1px solid rgba(212, 175, 55, 0.3);
             cursor: pointer;
@@ -134,6 +142,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
             justify-content: center;
             font-weight: bold;
             font-size: 0.8rem;
+            flex-shrink: 0;
         }
         .user-badge .user-info {
             display: flex;
@@ -147,22 +156,21 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
         }
         .user-badge .user-role {
             color: #d4af37;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        /* Header Icons (Settings, Logout) */
         .header-icon {
             background: transparent;
             border: none;
             color: #aaa;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
             padding: 5px 8px;
             transition: all 0.3s;
-            position: relative;
             border-radius: 5px;
+            text-decoration: none;
         }
         .header-icon:hover {
             color: #d4af37;
@@ -170,50 +178,51 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
         }
 
         /* ============================================
-        MOBILE RESPONSIVE
+           RESPONSIVE
            ============================================ */
         @media (max-width: 768px) {
-            .header {
-                padding: 0.6rem 3%;
-                min-height: 55px;
-            }
-            .logo { font-size: 1.2rem; }
-            .hamburger-btn { font-size: 1.4rem; }
-            .user-badge { padding: 0.3rem 0.8rem; }
-            .user-badge .user-info .user-name { font-size: 0.75rem; }
-            .user-badge .user-info .user-role { font-size: 0.55rem; }
+            .header { padding: 0.5rem 3%; min-height: 55px; }
+            .header-logo img { max-height: 32px; }
+            .header-logo .logo-text { font-size: 1.1rem; }
+            .header-logo .logo-tagline { font-size: 0.45rem; }
+            .user-badge { padding: 0.2rem 0.6rem 0.2rem 0.2rem; }
+            .user-badge .user-info .user-name { font-size: 0.7rem; }
+            .user-badge .user-info .user-role { font-size: 0.5rem; }
             .user-badge .avatar { width: 25px; height: 25px; font-size: 0.65rem; }
-            .header-icon { font-size: 1rem; }
+            .header-icon { font-size: 0.95rem; }
         }
 
         @media (max-width: 480px) {
-            .header { padding: 0.5rem 2%; min-height: 48px; }
-            .logo { font-size: 1rem; }
-            .logo small { font-size: 0.55rem; }
-            .hamburger-btn { font-size: 1.2rem; padding: 3px 5px; }
-            .user-badge { padding: 0.2rem 0.6rem; gap: 0.4rem; }
-            .user-badge .user-info .user-name { font-size: 0.65rem; }
-            .user-badge .user-info .user-role { font-size: 0.5rem; }
+            .header { padding: 0.4rem 2%; min-height: 48px; }
+            .header-logo img { max-height: 28px; }
+            .header-logo .logo-text { font-size: 0.9rem; }
+            .header-logo .logo-tagline { font-size: 0.4rem; }
+            .user-badge { padding: 0.15rem 0.4rem 0.15rem 0.15rem; gap: 0.3rem; }
+            .user-badge .user-info .user-name { font-size: 0.6rem; }
+            .user-badge .user-info .user-role { font-size: 0.45rem; }
             .user-badge .avatar { width: 22px; height: 22px; font-size: 0.55rem; }
-            .header-icon { font-size: 0.85rem; padding: 3px 5px; }
+            .header-icon { font-size: 0.8rem; padding: 3px 5px; }
         }
     </style>
 </head>
 <body>
 
 <!-- ============================================
-HEADER
-============================================ -->
+   HEADER
+   ============================================ -->
 <header class="header" id="mainHeader">
 
-    <!-- LEFT: Hamburger + Logo -->
+    <!-- LEFT: Logo Image + Text -->
     <div class="header-left">
-        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div class="logo">
-            <span>SALON</span> PRO <small><?php echo $is_super_admin ? '👑' : '✨'; ?></small>
-        </div>
+        <a href="<?php echo $base_path; ?>index.php" class="header-logo">
+            <?php if ($logo_exists): ?>
+                <img src="<?php echo $logo_path; ?>" alt="Salon Pro Logo">
+            <?php endif; ?>
+            <div>
+                <span class="logo-text"><span>SALON</span> PRO</span>
+                <span class="logo-tagline">Where Beauty Meets Luxury</span>
+            </div>
+        </a>
     </div>
 
     <!-- RIGHT: User Badge + Icons -->
@@ -235,7 +244,7 @@ HEADER
                 </a>
             <?php endif; ?>
 
-            <!-- Logout Icon -->
+            <!-- Logout Icon - FIXED PATH -->
             <a href="<?php echo $base_path; ?>auth/logout.php" class="header-icon" title="Logout" onclick="return confirm('Are you sure you want to logout?')">
                 <i class="fas fa-sign-out-alt"></i>
             </a>

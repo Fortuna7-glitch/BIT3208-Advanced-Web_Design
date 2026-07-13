@@ -1,5 +1,5 @@
 <?php
-// auth/register.php - FIXED with salon_id from URL
+// auth/register.php - FIXED: No default salon assignment
 require_once '../config/database.php';
 
 if (isLoggedIn()) {
@@ -10,20 +10,19 @@ if (isLoggedIn()) {
 $error = '';
 $success = '';
 
-// Get salon_id from URL parameter (passed from login page)
+// Get salon_id from URL parameter (if a specific salon was selected)
 $salon_id = isset($_GET['salon_id']) ? (int)$_GET['salon_id'] : 0;
 
-// If no salon_id is provided, default to Headquarters (salon_id = 2)
-if ($salon_id <= 0) {
-    $salon_id = 2; // Headquarters
+// Verify salon exists if a salon_id was provided
+$salon = null;
+if ($salon_id > 0) {
+    $salon_check = mysqli_query($conn, "SELECT id, salon_name FROM salons WHERE id = $salon_id AND subscription_status = 'active'");
+    if (mysqli_num_rows($salon_check) > 0) {
+        $salon = mysqli_fetch_assoc($salon_check);
+    } else {
+        $salon_id = 0; // Reset if invalid
+    }
 }
-
-// Verify salon exists
-$salon_check = mysqli_query($conn, "SELECT id, salon_name FROM salons WHERE id = $salon_id AND subscription_status = 'active'");
-if (mysqli_num_rows($salon_check) == 0) {
-    $salon_id = 2; // Fallback to Headquarters if salon not found
-}
-$salon = mysqli_fetch_assoc($salon_check);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $full_name = mysqli_real_escape_string($conn, $_POST['full_name']);
@@ -46,14 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (mysqli_num_rows($check_result) > 0) {
             $error = "Email already registered!";
         } else {
-            // INSERT with salon_id from URL
-            $query = "INSERT INTO users (full_name, email, phone, password, role, salon_id, is_active) 
-                    VALUES ('$full_name', '$email', '$phone', '$hashed_password', 'customer', $salon_id, 1)";
+            // INSERT without assigning a salon (customer will be assigned when they book)
+            $query = "INSERT INTO users (full_name, email, phone, password, role, is_active) 
+                      VALUES ('$full_name', '$email', '$phone', '$hashed_password', 'customer', 1)";
             
             if (mysqli_query($conn, $query)) {
                 $success = "Registration successful! Please login.";
-                // Redirect to login with salon_id preserved
-                echo "<meta http-equiv='refresh' content='2;url=login.php?salon_id=$salon_id'>";
+                // Redirect to login without salon_id
+                echo "<meta http-equiv='refresh' content='2;url=login.php'>";
             } else {
                 $error = "Registration failed: " . mysqli_error($conn);
             }
@@ -102,6 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #d4af37;
             font-size: 0.9rem;
         }
+        .salon-notice .highlight {
+            color: #fff;
+            font-weight: 600;
+        }
         
         /* Password Strength Styles */
         .password-strength { margin-top: 8px; padding: 8px; border-radius: 8px; background: #0a0a0a; }
@@ -123,18 +126,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="auth-container">
         <div class="auth-card">
-            <h2>✨ Create Account ✨</h2>
+            <h2>✨ Create Your Account</h2>
             
-            <!-- Show which salon they are registering for -->
-            <div class="salon-notice">
-                📍 Registering for: <strong><?php echo htmlspecialchars($salon['salon_name']); ?></strong>
-            </div>
+            <?php if($salon_id > 0 && $salon): ?>
+                <div class="salon-notice">
+                    📍 Registering for: <span class="highlight"><?php echo htmlspecialchars($salon['salon_name']); ?></span>
+                </div>
+            <?php else: ?>
+                <div class="salon-notice">
+                    🏢 Join Salon Pro — you can choose a salon after registering
+                </div>
+            <?php endif; ?>
             
             <?php if($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
+                <div class="alert alert-danger">❌ <?php echo $error; ?></div>
             <?php endif; ?>
             <?php if($success): ?>
-                <div class="alert alert-success"><?php echo $success; ?> Redirecting to login...</div>
+                <div class="alert alert-success">✅ <?php echo $success; ?> Redirecting to login...</div>
             <?php endif; ?>
             
             <form method="POST" id="registerForm">
@@ -198,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </form>
             
             <div class="auth-footer">
-                <p>Already have an account? <a href="login.php?salon_id=<?php echo $salon_id; ?>"><i class="fas fa-sign-in-alt"></i> Login here</a></p>
+                <p>Already have an account? <a href="login.php"><i class="fas fa-sign-in-alt"></i> Login here</a></p>
             </div>
             <div class="back-home">
                 <a href="../index.php"><i class="fas fa-home"></i> Back to Home</a>

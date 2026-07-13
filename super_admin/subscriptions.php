@@ -17,8 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_subscription'])) {
     $expiry_date = mysqli_real_escape_string($conn, $_POST['expiry_date']);
 
     $query = "INSERT INTO subscription_history (salon_id, plan, amount, payment_method, expiry_date) 
-              VALUES ('$salon_id', '$plan', '$amount', '$payment_method', '$expiry_date')";
+            VALUES ('$salon_id', '$plan', '$amount', '$payment_method', '$expiry_date')";
+
     if (mysqli_query($conn, $query)) {
+        // Add this after the INSERT query:
+$update_salon = "UPDATE salons SET 
+                subscription_plan = '$plan', 
+                subscription_expiry = '$expiry_date',
+                subscription_status = 'active'
+                WHERE id = $salon_id";
+mysqli_query($conn, $update_salon);
         mysqli_query($conn, "UPDATE salons SET subscription_plan = '$plan', subscription_expiry = '$expiry_date' WHERE id = $salon_id");
         $message = "<div class='alert alert-success'>✅ Subscription added successfully!</div>";
     } else {
@@ -35,9 +43,9 @@ if (isset($_GET['delete']) && isset($_GET['id'])) {
 
 // Get all subscriptions with salon info
 $subscriptions = mysqli_query($conn, "SELECT sh.*, s.salon_name 
-                                       FROM subscription_history sh 
-                                       JOIN salons s ON sh.salon_id = s.id 
-                                       ORDER BY sh.payment_date DESC");
+                                    FROM subscription_history sh 
+                                    JOIN salons s ON sh.salon_id = s.id 
+                                    ORDER BY sh.payment_date DESC");
 
 // Get all salons for dropdown
 $salons = mysqli_query($conn, "SELECT id, salon_name, subscription_plan FROM salons ORDER BY salon_name");
@@ -186,7 +194,7 @@ include '../includes/header.php';
     }
 
     /* ============================================
-       RESPONSIVE
+    RESPONSIVE
        ============================================ */
     @media (max-width: 1024px) {
         table { min-width: 600px; font-size: 0.85rem; }

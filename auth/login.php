@@ -1,32 +1,26 @@
 <?php
-// auth/login.php - UPDATED with redirect and salon_id parameters
+// auth/login.php - FIXED (removed break, used goto instead)
 require_once '../config/database.php';
 
-// Capture redirect parameters from URL
-$redirect_url = isset($_GET['redirect']) ? $_GET['redirect'] : '';
-$salon_id = isset($_GET['salon_id']) ? (int)$_GET['salon_id'] : 0;
-
 // If already logged in, redirect based on role
-if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
-    // If there's a redirect parameter, go there first
-    if (!empty($redirect_url)) {
-        $redirect_param = !empty($salon_id) ? "?salon_id=$salon_id" : "";
-        header("Location: ../$redirect_url$redirect_param");
-        exit();
-    }
-    
-    // Otherwise go to role-specific dashboard
-    if ($_SESSION['user_role'] == 'super_admin') {
-        header("Location: ../super_admin/dashboard.php");
-        exit();
-    } elseif ($_SESSION['user_role'] == 'admin') {
-        header("Location: ../admin/dashboard.php");
-        exit();
-    } elseif ($_SESSION['user_role'] == 'staff') {
-        header("Location: ../staff/dashboard.php");
-        exit();
-    } elseif ($_SESSION['user_role'] == 'customer') {
-        header("Location: ../customer/dashboard.php");
+if (isLoggedIn()) {
+    if (isset($_SESSION['user_role'])) {
+        switch($_SESSION['user_role']) {
+            case 'super_admin':
+                header("Location: ../super_admin/dashboard.php");
+                break;
+            case 'admin':
+                header("Location: ../admin/dashboard.php");
+                break;
+            case 'staff':
+                header("Location: ../staff/dashboard.php");
+                break;
+            case 'customer':
+                header("Location: ../customer/dashboard.php");
+                break;
+            default:
+                header("Location: ../index.php");
+        }
         exit();
     }
 }
@@ -44,36 +38,70 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $user = mysqli_fetch_assoc($result);
         
         if (password_verify($password, $user['password'])) {
-            // Set session variables
+            
+            // ============================================
+            // SUBSCRIPTION EXPIRY CHECK (Admins & Staff Only)
+            // ============================================
+            if ($user['role'] == 'admin' || $user['role'] == 'staff') {
+                
+                $salon_id = $user['salon_id'] ?? 0;
+                
+                if ($salon_id > 0) {
+                    $subscription_query = "SELECT subscription_expiry, subscription_status 
+                                           FROM salons 
+                                           WHERE id = $salon_id";
+                    $subscription_result = mysqli_query($conn, $subscription_query);
+                    
+                    if ($subscription_result && $subscription_data = mysqli_fetch_assoc($subscription_result)) {
+                        $expiry_date = $subscription_data['subscription_expiry'];
+                        $subscription_status = $subscription_data['subscription_status'];
+                        
+                        $today = date('Y-m-d');
+                        
+                        // Check if expiry date is set and is in the past
+                        if (!empty($expiry_date) && $expiry_date < $today) {
+                            $error = "Your salon subscription has expired on " . date('M d, Y', strtotime($expiry_date)) . ". Please contact the administrator to renew.";
+                            // Skip session creation - use goto
+                            goto skip_login;
+                        }
+                        
+                        // Check if status is explicitly expired or suspended
+                        if ($subscription_status == 'expired' || $subscription_status == 'suspended') {
+                            $error = "Your salon account is currently " . $subscription_status . ". Please contact the administrator.";
+                            goto skip_login;
+                        }
+                    }
+                }
+            }
+            
+            // ============================================
+            // SET SESSION VARIABLES
+            // ============================================
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['full_name'];
             $_SESSION['user_email'] = $user['email'];
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['salon_id'] = $user['salon_id'] ?? 1;
             
-            // Check if there's a redirect parameter
-            if (!empty($redirect_url)) {
-                $redirect_param = !empty($salon_id) ? "?salon_id=$salon_id" : "";
-                header("Location: ../$redirect_url$redirect_param");
-                exit();
-            }
-            
             // Redirect based on role
             if ($user['role'] == 'super_admin') {
                 header("Location: ../super_admin/dashboard.php");
-                exit();
             } elseif ($user['role'] == 'admin') {
                 header("Location: ../admin/dashboard.php");
-                exit();
             } elseif ($user['role'] == 'staff') {
                 header("Location: ../staff/dashboard.php");
-                exit();
             } elseif ($user['role'] == 'customer') {
                 header("Location: ../customer/dashboard.php");
-                exit();
             } else {
                 $error = "Account role not recognized. Please contact admin.";
             }
+            exit();
+            
+            // Skip login label for expired subscriptions
+            skip_login:
+            // Error message already set above, do nothing
+            ;
+            
         } else {
             $error = "Invalid password!";
         }
@@ -104,36 +132,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .toggle-password { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #d4af37; background: transparent; border: none; }
         .alert { padding: 15px; border-radius: 8px; margin-bottom: 1rem; }
         .alert-danger { background: rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #dc3545; }
-        button[type="submit"] { width: 100%; padding: 12px; background: #d4af37; color: #050505; border: none; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-        button[type="submit"]:hover { background: #f9e547; transform: translateY(-2px); }
-        .demo-credentials { margin-top: 1.5rem; padding: 1rem; background: #0a0a0a; border-radius: 8px; font-size: 0.8rem; border-left: 3px solid #d4af37; }
-        .demo-credentials strong { color: #d4af37; }
+        button[type="submit"] { width: 100%; padding: 12px; background: #d4af37; color: #050505; border: none; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        button[type="submit"]:hover { background: #f9e547; }
         .auth-footer { text-align: center; margin-top: 1.5rem; }
         .auth-footer a { color: #d4af37; text-decoration: none; }
+        .demo-credentials { margin-top: 1.5rem; padding: 1rem; background: #0a0a0a; border-radius: 8px; font-size: 0.8rem; border-left: 3px solid #d4af37; }
+        .demo-credentials strong { color: #d4af37; }
         .back-home { text-align: center; margin-top: 1rem; }
         .back-home a { color: #888; text-decoration: none; }
-        .redirect-notice {
-            background: rgba(212, 175, 55, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            text-align: center;
-            font-size: 0.85rem;
-            color: #d4af37;
-        }
+        .redirect-notice { background: rgba(212, 175, 55, 0.1); padding: 10px; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-size: 0.85rem; color: #d4af37; }
     </style>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
             <h2>🔐 Welcome Back</h2>
-            
-            <!-- Show redirect notice if returning to booking -->
-            <?php if($redirect_url == 'customer/book.php' && $salon_id > 0): ?>
-            <div class="redirect-notice">
-                📍 Please login to complete your booking
-            </div>
-            <?php endif; ?>
             
             <?php if($error): ?>
                 <div class="alert alert-danger"><?php echo $error; ?></div>
@@ -164,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             
             <div class="auth-footer">
-                <p>Don't have an account? <a href="register.php?salon_id=<?php echo isset($_GET['salon_id']) ? (int)$_GET['salon_id'] : 2; ?>">Register here</a></p>
+                <p>Don't have an account? <a href="register.php">Register here</a></p>
             </div>
             
             <div class="back-home">
