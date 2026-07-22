@@ -220,6 +220,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
                 <li><a href="<?php echo $base_path; ?>super_admin/salons.php"><span class="icon">🏢</span> Salons</a></li>
                 <li><a href="<?php echo $base_path; ?>super_admin/admins.php"><span class="icon">👨‍💼</span> Owners</a></li>
                 <li><a href="<?php echo $base_path; ?>super_admin/subscriptions.php"><span class="icon">💰</span> Subscriptions</a></li>
+                <li><a href="../super_admin/products.php">📦 All Products</a></li>
                 <li><div class="divider"></div></li>
                 <li><a href="<?php echo $base_path; ?>super_admin/settings.php"><span class="icon">⚙️</span> Settings</a></li>
 
@@ -230,6 +231,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
                 <li><a href="<?php echo $base_path; ?>admin/services.php"><span class="icon">💇</span> Services</a></li>
                 <li><a href="<?php echo $base_path; ?>admin/staff.php"><span class="icon">👥</span> Staff</a></li>
                 <li><a href="<?php echo $base_path; ?>admin/customers.php"><span class="icon">👤</span> Customers</a></li>
+                <li><a href="../admin/products.php">📦 Products</a></li>
+                <li><a href="../admin/product_orders.php">📋 Product Orders</a></li>
                 <li><a href="<?php echo $base_path; ?>admin/payments.php"><span class="icon">💰</span> Payments</a></li>
                 <li><a href="<?php echo $base_path; ?>admin/reports.php"><span class="icon">📈</span> Reports</a></li>
                 <li><div class="divider"></div></li>
@@ -241,6 +244,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
                 <li><a href="<?php echo $base_path; ?>staff/appointments.php"><span class="icon">📅</span> My Appointments</a></li>
                 <li><a href="<?php echo $base_path; ?>staff/book_for_customer.php"><span class="icon">📝</span> Book for Customer</a></li>
                 <li><a href="<?php echo $base_path; ?>staff/manual_payment.php"><span class="icon">💵</span> Manual Payment</a></li>
+                <li><a href="../staff/products.php">📦 View Products</a></li>
+                <li><a href="../staff/sell_product.php">🛒 Sell Product</a></li>
                 <li><a href="<?php echo $base_path; ?>staff/reports.php"><span class="icon">📈</span>Reports</a></li>
                 <li><div class="divider"></div></li>
                 <li><a href="<?php echo $base_path; ?>staff/profile.php"><span class="icon">👤</span> My Profile</a></li>
@@ -250,6 +255,9 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
                 <li><a href="<?php echo $base_path; ?>customer/dashboard.php" class="active"><span class="icon">📊</span> Dashboard</a></li>
                 <li><a href="<?php echo $base_path; ?>customer/appointments.php"><span class="icon">📋</span> My Appointments</a></li>
                 <li><a href="<?php echo $base_path; ?>customer/book.php"><span class="icon">📅</span> New Booking</a></li>
+                <li><a href="../customer/shop.php">🛍️ Shop</a></li>
+                <li><a href="../customer/cart.php">🛒 Cart</a></li>
+                <li><a href="../customer/my_orders.php">📋 My Orders</a></li>
                 <li><div class="divider"></div></li>
                 <li><a href="<?php echo $base_path; ?>customer/update-profile.php"><span class="icon">👤</span> My Profile</a></li>
 

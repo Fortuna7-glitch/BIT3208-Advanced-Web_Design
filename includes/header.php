@@ -22,6 +22,9 @@ $user_role = '';
 $user_name = '';
 $user_email = '';
 $is_super_admin = false;
+$is_customer = false;
+$is_staff = false;
+$is_admin = false;
 
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $logged_in = true;
@@ -29,11 +32,20 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $user_name = $_SESSION['user_name'];
     $user_email = $_SESSION['user_email'] ?? '';
     $is_super_admin = ($user_role == 'super_admin');
+    $is_customer = ($user_role == 'customer');
+    $is_staff = ($user_role == 'staff' || $user_role == 'admin');
+    $is_admin = ($user_role == 'admin');
 }
 
 // Logo file path
 $logo_path = $base_path . 'assets/images/logo.png';
 $logo_exists = file_exists($logo_path);
+
+// Get unread notification count for Super Admin
+$unread_count = 0;
+if ($is_super_admin && function_exists('getUnreadNotificationCount')) {
+    $unread_count = getUnreadNotificationCount();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -111,7 +123,49 @@ $logo_exists = file_exists($logo_path);
         .header-right {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.8rem;
+        }
+
+        .header-icon {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 5px 8px;
+            transition: all 0.3s;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            position: relative;
+        }
+        .header-icon:hover {
+            color: #d4af37;
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .header-icon .icon-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            display: none;
+        }
+
+        /* Notification Badge on Bell */
+        .header-icon .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #dc3545;
+            color: white;
+            font-size: 0.55rem;
+            font-weight: 700;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .user-badge {
@@ -161,20 +215,11 @@ $logo_exists = file_exists($logo_path);
             letter-spacing: 0.5px;
         }
 
-        .header-icon {
-            background: transparent;
-            border: none;
-            color: #aaa;
-            font-size: 1.1rem;
-            cursor: pointer;
-            padding: 5px 8px;
-            transition: all 0.3s;
-            border-radius: 5px;
-            text-decoration: none;
-        }
-        .header-icon:hover {
-            color: #d4af37;
-            background: rgba(212, 175, 55, 0.1);
+        /* Show label on larger screens */
+        @media (min-width: 769px) {
+            .header-icon .icon-label {
+                display: inline;
+            }
         }
 
         /* ============================================
@@ -189,7 +234,8 @@ $logo_exists = file_exists($logo_path);
             .user-badge .user-info .user-name { font-size: 0.7rem; }
             .user-badge .user-info .user-role { font-size: 0.5rem; }
             .user-badge .avatar { width: 25px; height: 25px; font-size: 0.65rem; }
-            .header-icon { font-size: 0.95rem; }
+            .header-icon { font-size: 0.95rem; padding: 4px 6px; }
+            .header-icon .icon-label { display: none; }
         }
 
         @media (max-width: 480px) {
@@ -227,7 +273,38 @@ $logo_exists = file_exists($logo_path);
 
     <!-- RIGHT: User Badge + Icons -->
     <div class="header-right">
+        
+        <!-- SEARCH ICON -->
+        <a href="#" class="header-icon" id="searchToggle" title="Search (Ctrl+K)">
+            <i class="fas fa-search"></i>
+        </a>
+
         <?php if ($logged_in): ?>
+            
+            <!-- SHOP & CART ICONS (Only for Customers) -->
+            <?php if ($is_customer): ?>
+                <!-- Shop Icon -->
+                <a href="<?php echo $base_path; ?>customer/shop.php" class="header-icon" title="Shop Products">
+                    <i class="fas fa-store"></i>
+                    <span class="icon-label">Shop</span>
+                </a>
+
+                <!-- Cart Icon with Badge -->
+                <?php
+                $cart_count = 0;
+                if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+                    $cart_count = array_sum($_SESSION['cart']);
+                }
+                ?>
+                <a href="<?php echo $base_path; ?>customer/cart.php" class="header-icon" title="View Cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <?php if ($cart_count > 0): ?>
+                        <span class="badge"><?php echo $cart_count; ?></span>
+                    <?php endif; ?>
+                    <span class="icon-label">Cart</span>
+                </a>
+            <?php endif; ?>
+
             <!-- User Badge -->
             <div class="user-badge" id="userBadge">
                 <div class="avatar"><?php echo strtoupper(substr($user_name, 0, 1)); ?></div>
@@ -237,6 +314,16 @@ $logo_exists = file_exists($logo_path);
                 </div>
             </div>
 
+            <!-- NOTIFICATION BELL (Super Admin Only) -->
+            <?php if ($is_super_admin): ?>
+                <a href="<?php echo $base_path; ?>super_admin/notifications.php" class="header-icon" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <?php if ($unread_count > 0): ?>
+                        <span class="badge"><?php echo min($unread_count, 99); ?></span>
+                    <?php endif; ?>
+                </a>
+            <?php endif; ?>
+
             <!-- Settings Icon (Super Admin Only) -->
             <?php if ($is_super_admin): ?>
                 <a href="<?php echo $base_path; ?>super_admin/settings.php" class="header-icon" title="Settings">
@@ -244,10 +331,11 @@ $logo_exists = file_exists($logo_path);
                 </a>
             <?php endif; ?>
 
-            <!-- Logout Icon - FIXED PATH -->
+            <!-- Logout Icon -->
             <a href="<?php echo $base_path; ?>auth/logout.php" class="header-icon" title="Logout" onclick="return confirm('Are you sure you want to logout?')">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
+
         <?php else: ?>
             <!-- Public: Login/Register -->
             <a href="<?php echo $base_path; ?>auth/login.php" class="header-icon" title="Login">
@@ -260,5 +348,56 @@ $logo_exists = file_exists($logo_path);
     </div>
 
 </header>
+
+<!-- ============================================
+   SEARCH PANEL OVERLAY
+   ============================================ -->
+<div id="searchOverlay" class="search-overlay">
+    <div id="searchPanel" class="search-panel">
+        
+        <!-- Search Header -->
+        <div class="search-header">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search salons, owners, or staff..." autocomplete="off">
+            <span class="search-shortcut" id="searchShortcut">Ctrl+K</span>
+            <button id="searchClose" class="search-close" title="Close (ESC)">✕</button>
+        </div>
+
+        <!-- Search Tabs -->
+        <div class="search-tabs">
+            <button class="search-tab active" data-category="all">All</button>
+            <button class="search-tab" data-category="salons">🏪 Salons</button>
+            <button class="search-tab" data-category="owners">👤 Owners</button>
+            <button class="search-tab" data-category="staff">👥 Staff</button>
+        </div>
+
+        <!-- Search Loading -->
+        <div id="searchLoading" class="search-loading">
+            <div class="spinner"></div>
+            <p style="color: #7a7568; margin-top: 0.8rem; font-size: 0.85rem;">Searching...</p>
+        </div>
+
+        <!-- Search Recent -->
+        <div id="searchRecent" class="search-recent">
+            <div class="search-recent-title">📊 Recent Searches</div>
+            <div id="searchRecentList"></div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResults" class="search-results">
+            <div class="search-results-header">
+                <span id="resultsCount">0 results</span>
+            </div>
+            <div id="searchResultsTable"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ============================================
+   LOAD SEARCH CSS & JS
+   ============================================ -->
+<link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/search.css">
+<script src="<?php echo $base_path; ?>assets/js/search.js"></script>
 
 <main>
